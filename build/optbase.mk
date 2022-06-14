@@ -1,0 +1,10 @@
+PROJ_NAME := f09
+CROSS_COMPILE :=/usr/bin/
+DEBUG_VERSION := n
+
+
+export PLATFORM_TYPE
+export PLATFORM_SDK_DIR
+export BOARD_TYPE
+export CROSS_COMPILE
+export DEBUG_VERSION
