@@ -19,9 +19,9 @@ ossSocket::ossSocket(unsigned int port, int timeout)
     memset(&m_sockAddress,0,sizeof(sockaddr_in));
     memset(&m_peerAddress,0,sizeof(sockaddr_in));
     m_peerAddressLen = sizeof(m_peerAddress);
-    m_peerAddress.sin_family =AF_INET;
-    m_peerAddress.sin_addr.s_addr =htonl(INADDR_ANY);
-    m_peerAddress.sin_port = htons(port);
+    m_sockAddress.sin_family =AF_INET;
+    m_sockAddress.sin_addr.s_addr =htonl(INADDR_ANY);
+    m_sockAddress.sin_port = htons(port);
     m_addressLen =  sizeof(m_sockAddress);
 }
 
@@ -161,6 +161,12 @@ int ossSocket::bindListen()
     if(rc)
     {
         printf("Failed to bind socket ,rc=%d\n",SOCKET_GETLASTERROR);
+    }
+
+    rc = listen ( m_fd, SOMAXCONN ) ;
+    if ( rc )
+    {
+        printf("Failed to  listen socket,rc=%d\n", SOCKET_GETLASTERROR);
     }
 
 done:
@@ -467,7 +473,7 @@ int ossSocket::accept(int *sock, struct sockaddr *addr, socklen_t*addrlen, int t
             {
             continue ;
             }
-            printf ( "Failed to select from socket, rc = %d", SOCKET_GETLASTERROR);
+            printf ( "Failed to select from socket, rc = %d\n", SOCKET_GETLASTERROR);
             rc = EDB_NETWORK ;
             goto error ;
         }
@@ -480,7 +486,7 @@ int ossSocket::accept(int *sock, struct sockaddr *addr, socklen_t*addrlen, int t
     *sock = ::accept(m_fd, addr, addrlen);
     if(-1==*sock)
     {
-        printf ( "Failed to accept socket, rc = %d", SOCKET_GETLASTERROR ) ;
+        printf ( "Failed to accept socket, rc = %d\n", SOCKET_GETLASTERROR ) ;
         rc = EDB_NETWORK ;
         goto error ;
     }

@@ -6,13 +6,19 @@
 int pmdTcpListenerEntryPoint()
 {
     int rc = EDB_OK;
-    int port = 48127;
+    int port = 8888;
     ossSocket sock(port);
     rc = sock.initSocket();
     if(rc)
     {
-      printf ( "Failed to initialize socket, rc = %d", rc ) ;
+      printf ( "Failed to initialize socket, rc = %d\n", rc ) ;
       goto error ;
+    }
+    rc = sock.bindListen();
+    if(rc)
+    {
+       printf("Failed to bind socket,rc=%d\n", rc);
+       goto error;
     }
 
     while (true)
@@ -23,6 +29,10 @@ int pmdTcpListenerEntryPoint()
         {
          rc = EDB_OK ;
          continue ;
+        }else if(rc)
+        {
+           printf(" Failed to accept socket in TcpListener\n");
+           break;
         }
         char buffer[1024];
         int size;
@@ -33,7 +43,7 @@ int pmdTcpListenerEntryPoint()
          rc = client_sock.recv ((char*)&size,4 ) ;
          if ( rc && rc != EDB_TIMEOUT )
          {
-            printf ( "Failed to receive size, rc = %d", rc ) ;
+            printf ( "Failed to receive size, rc = %d\n", rc ) ;
             goto error ;
          }
          }  while ( EDB_TIMEOUT == rc ) ;

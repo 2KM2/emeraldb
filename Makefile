@@ -25,7 +25,7 @@ TARGETS_LIB := common
 #BIN TARGET目录
 TARGETS_BIN += emeraldb
 
-
+TARGETS_BIN +=edb
 
 
 TARGETS := $(TARGETS_LIB) $(TARGETS_BIN)
