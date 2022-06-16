@@ -23,9 +23,10 @@ MAKEFLAGS += --no-print-directory
 
 TARGETS_LIB := common
 #BIN TARGET目录
+
+TARGETS_BIN += edb
 TARGETS_BIN += emeraldb
 
-TARGETS_BIN +=edb
 
 
 TARGETS := $(TARGETS_LIB) $(TARGETS_BIN)

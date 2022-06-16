@@ -8,4 +8,5 @@ else
 fi
 cd opensource/boost
 ./bootstrap.sh --prefix=./
-./bjam link=static threading=multi variant=release address-model=$bitlevel toolset=gcc runtime-link=static
+#./bjam  cxxflags='-fPIC -std=c++11' link=static threading=multi variant=release address-model=$bitlevel toolset=gcc runtime-link=static
+./b2 -a  cxxflags='-fPIC -std=c++11' install --prefix=/home/zkm/emeraldb/opensource/boost/stage link=static threading=multi boost.locale.icu=off

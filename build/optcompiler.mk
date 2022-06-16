@@ -13,8 +13,7 @@ CFLAGS += -g -I $(TOP_DIR)/opensource/boost/   -D_FILE_OFFSET_BITS=64 -ggdb -Wal
 endif
 
 #CXXFLAGS += -fno-strict-aliasing -traditional -Wno-reorder -Wno-char-subscripts -std=c++11
-CXXFLAGS += -std=c++11 -I $(TOP_DIR)/opensource/boost/   -D_FILE_OFFSET_BITS=64 -ggdb -Wall -O0
-
+CXXFLAGS += -std=c++11
 export CC
 export CXX
 export STRIP
