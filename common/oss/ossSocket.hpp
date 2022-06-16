@@ -8,7 +8,7 @@
 #define OSS_MAX_HOSTNAME NI_MAXHOST
 #define OSS_MAX_SERVICENAME NI_MAXSERV
 
-
+#define MAX_RECV_RETRIES 5
 class ossSocket
 {
 public:
@@ -27,7 +27,7 @@ public:
     ossSocket(unsigned int port, int timeout=0);
 
     /**
-     * @brief create a connection socket such as peer socket
+     * @brief create a connection socket such as client socket
      * 
      * @param pHostName 
      * @param port 

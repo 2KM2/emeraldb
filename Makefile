@@ -21,7 +21,7 @@ include $(BUILD_DIR)/optcompiler.mk
 
 MAKEFLAGS += --no-print-directory
 
-TARGETS_LIB :=
+TARGETS_LIB := common
 #BIN TARGET目录
 TARGETS_BIN += emeraldb
 
@@ -31,12 +31,11 @@ TARGETS_BIN += emeraldb
 TARGETS := $(TARGETS_LIB) $(TARGETS_BIN)
 
 
-
-
-
+$(TARGETS_BIN): common
 
 $(TARGETS):
 	@make $(BUILD)=$@
+
 
 
 subclean := $(foreach d,$(TARGETS),clean-$(d))
