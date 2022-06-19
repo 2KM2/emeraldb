@@ -85,11 +85,7 @@ INTERFACE_API int LOG_API_SetPara(int printlevel, int direction, char *direction
 }
 
 
-<<<<<<< HEAD
-INTERFACE_API void LOG_API_Print(int level, const char *file, const char *func, int line, const char *fmt, ...)
-=======
 INTERFACE_API void LOG_API_Print(LOG_LEVEL_E level, const char *file, const char *func, int line, const char *fmt, ...)
->>>>>>> 1. change file struct
 {
     if(LOG_DIRECTION_E::LOG_TO_NULL==s_direction)
     {

@@ -1,10 +1,6 @@
 #include "linuxinclude.h"
 #include "commontype.h"
-<<<<<<< HEAD
-#include "edb.hpp"
-=======
 #include "edb.h"
->>>>>>> 1. change file struct
 const char    SPACE             =  ' ';
 const char    TAB               =  '\t';
 const char    BACK_SLANT        =  '\\';
