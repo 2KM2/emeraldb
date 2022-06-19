@@ -10,6 +10,6 @@ INCLUDE_H_FLAGS += $(foreach d, $(shell find $(TARGET_DIR) -maxdepth 5 -type d),
 
 CFLAGS += -Wno-psabi
 
-LD_LIB_FLAGS := -L$(OPENSOURCE_DIR)/boost/stage/lib 
+# LD_LIB_FLAGS := -L$(BOOST_DIR)/include/boost
 LD_DYNAMIC_LIBS := -lm -lboost_system -lboost_thread -lboost_program_options -lrt -lpthread
-CXXFLAGS += -I $(OPENSOURCE_DIR)/boost -D_FILE_OFFSET_BITS=64 -ggdb -Wall -O0
+CXXFLAGS += -I  -ggdb -Wall -O0

@@ -11,6 +11,6 @@ INCLUDE_H_FLAGS += $(foreach d, $(shell find $(TOP_DIR)/common -maxdepth 1 -type
 INCLUDE_H_FLAGS += $(foreach d, $(SRC_DIR), -I$(d))
 
 
-LD_LIB_FLAGS :=-L$(RELEASE_LIB_DIR)
-LD_DYNAMIC_LIBS := -lcommon -lpthread
+LD_LIB_FLAGS :=-L$(RELEASE_LIB_DIR) 
+LD_DYNAMIC_LIBS := -lcommon -lpthread -lm -lboost_system -lboost_thread -lboost_program_options -lrt
 

@@ -3,8 +3,8 @@ TOP_DIR := $(patsubst %/,%,$(dir $(MK_FULLNAME)))
 BUILD_DIR := $(TOP_DIR)/build
 BUILD_OUTPUT_DIR := $(BUILD_DIR)/output
 RELEASE_DIR := $(BUILD_DIR)/release
-OPENSOURCE_DIR :=$(TOP_DIR)/opensource
-export TOP_DIR BUILD_DIR BUILD_OUTPUT_DIR RELEASE_DIR  OPENSOURCE_DIR
+BOOST_DIR :=/usr/local
+export TOP_DIR BUILD_DIR BUILD_OUTPUT_DIR RELEASE_DIR  OPENSOURCE_DIR BOOST_DIR
 
 RELEASE_LIB_DIR := $(RELEASE_DIR)/lib
 RELEASE_BIN_DIR := $(RELEASE_DIR)/bin
@@ -31,7 +31,10 @@ TARGETS_BIN += emeraldb
 
 TARGETS := $(TARGETS_LIB) $(TARGETS_BIN)
 
+
 all: $(TARGETS)
+	@$(call COPY_PLATFORM_LIB_TO_RELEASE)
+
 
 
 $(TARGETS_BIN): common
@@ -39,7 +42,7 @@ $(TARGETS):
 	@$(MAKE) $(BUILD)=$@
 
 set_lib_path:
-	export LD_LIBRARY_PATH=${RELEASE_LIB_DIR}
+	(shell export LD_LIBRARY_PATH=${RELEASE_LIB_DIR})
 
 subclean := $(foreach d,$(TARGETS),clean-$(d))
 $(subclean):

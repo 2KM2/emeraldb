@@ -22,7 +22,7 @@ const char *getLOGLevelDesp(LOG_LEVEL_E level)
 static int s_printLevel = LOG_LEVEL_E::LOG_INFO;
 static int s_direction = LOG_DIRECTION_E::LOG_TO_STD;
 static char s_directionstr[32] = {0};
-
+char _pdDiagLogPath [ OSS_MAX_PATHSIZE+1 ] = {0} ;
 int LOG_GetFileName(char *filename,int len,const char *file)
 {
         const char *offset = strrchr(file, '/');
