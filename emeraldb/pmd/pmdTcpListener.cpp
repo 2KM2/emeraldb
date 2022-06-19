@@ -6,7 +6,7 @@
 int pmdTcpListenerEntryPoint()
 {
     int rc = EDB_OK;
-    int port = 8888;
+    int port = 48127;
     ossSocket sock(port);
     rc = sock.initSocket();
     if(rc)
@@ -38,6 +38,7 @@ int pmdTcpListenerEntryPoint()
         int size;
         ossSocket client_sock(&client_fd);
         client_sock.disableNagle();
+        printf("get new connect\n");
          do
          {
          rc = client_sock.recv ((char*)&size,4 ) ;

@@ -1,6 +1,4 @@
 #include "commandFactory.hpp"
-
-
 CommandFactory::CommandFactory()
 {
    addCommand();

@@ -35,6 +35,26 @@ void EDB::prompt(void)
     std::vector<std::string> optionVec;
     std::vector<std::string>::iterator iter = textVec.begin();
 
+    //handle different command here
+
+    ICommand * pCmd = NULL;
+    for(;iter!=textVec.end();++iter)
+    {
+        std::string  str = *iter;
+        if(0==count)
+        {
+            cmd = str;
+            count++;
+        }else {
+            optionVec.push_back(str);
+        }
+    }
+
+    pCmd = m_cmdFactory.getCommandProcesser(cmd.c_str());
+    if(NULL!=pCmd)
+    {
+        pCmd->execute(m_socket,optionVec);
+    }
 }
 
 void EDB::split(const std::string &text, char delim, std::vector<std::string> &result)

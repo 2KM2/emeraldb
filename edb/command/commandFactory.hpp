@@ -1,5 +1,4 @@
-#ifndef _COMMAND_FACTORY_HPP_
-#define _COMMAND_FACTORY_HPP_
+#pragma once
 #include "command.hpp"
 
 #define COMMAND_BEGIN void CommandFactory::addCommand() {
@@ -9,6 +8,10 @@
    std::string str = cmdName;                                   \
    _cmdMap.insert(COMMAND_MAP::value_type(str,pObj));           \
    }   
+
+
+
+   
 class CommandFactory {
    typedef std::map<std::string, ICommand*> COMMAND_MAP;
    public:
@@ -19,5 +22,3 @@ class CommandFactory {
    private:
       COMMAND_MAP _cmdMap;
 };
-
-#endif
