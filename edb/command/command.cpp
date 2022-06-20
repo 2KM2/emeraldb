@@ -1,7 +1,7 @@
-#include "command.hpp"
+#include "command.h"
 #include <iostream>
 #include <sstream>
-#include "edb.hpp"
+#include "edb.h"
 
 COMMAND_BEGIN
 COMMAND_ADD(COMMAND_CONNECT,ConnectCommand)

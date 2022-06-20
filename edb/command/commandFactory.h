@@ -1,5 +1,5 @@
 #pragma once
-#include "command.hpp"
+#include "command.h"
 
 #define COMMAND_BEGIN void CommandFactory::addCommand() {
 #define COMMAND_END }

@@ -1,8 +1,8 @@
 #pragma once
 #include  "linuxinclude.h"
 #include  "commontype.h"
-#include "command.hpp"
-#include "commandFactory.hpp"
+#include "command.h"
+#include "commandFactory.h"
 #include "ossSocket.h"
 #include <iostream>
 using namespace std;

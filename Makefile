@@ -38,7 +38,8 @@ $(TARGETS_BIN): common
 $(TARGETS):
 	@$(MAKE) $(BUILD)=$@
 
-
+set_lib_path:
+	export LD_LIBRARY_PATH=${RELEASE_LIB_DIR}
 
 subclean := $(foreach d,$(TARGETS),clean-$(d))
 $(subclean):
