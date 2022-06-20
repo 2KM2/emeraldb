@@ -138,9 +138,12 @@ typedef int (*pmdEntryPoint) ( pmdEDUCB *, void * ) ;
 pmdEntryPoint getEntryFuncByType ( EDU_TYPES type ) ;//给定类型返回函数指针
 
 
-int pmdAgentEntryPoint ( pmdEDUCB *cb, void *arg ) ;//代理线程:处理用户请求
-int pmdTcpListenerEntryPoint ( pmdEDUCB *cb, void *arg ) ;//监听线程
-int pmdEDUEntryPoint ( EDU_TYPES type, pmdEDUCB *cb, void *arg ) ;
+int pmdAgentEntryPoint ( pmdEDUCB *cb, void *arg ) ;       // 代理线程:处理用户请求
+
+int pmdTcpListenerEntryPoint ( pmdEDUCB *cb, void *arg ) ;//  监听线程
+
+int pmdEDUEntryPoint ( EDU_TYPES type, pmdEDUCB *cb, void *arg ) ;//线程函数
  
 int pmdRecv ( char *pBuffer, int recvSize, ossSocket *sock, pmdEDUCB *cb ) ;
+
 int pmdSend ( const char *pBuffer, int sendSize, ossSocket *sock, pmdEDUCB *cb ) ;

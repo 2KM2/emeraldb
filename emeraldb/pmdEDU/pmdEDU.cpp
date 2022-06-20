@@ -1,7 +1,7 @@
 #include "pmdEDUEvent.h"
 #include  "pmdEDU.h"
 #include  "logprint.h"
-
+#include  "pmdEDUMgr.h"
 static std::map<EDU_TYPES,std::string> mapEDUName;
 static std::map<EDU_TYPES,EDU_TYPES> mapEDUTypeSys;
 
@@ -28,3 +28,187 @@ done:
 error:
     goto done;
 }
+
+
+const char *getEDUName(EDU_TYPES type)
+{
+    std::map<EDU_TYPES,std::string>::iterator it=mapEDUName.find(type);
+    if(it!=mapEDUName.end())
+    {
+        return it->second.c_str();
+    }
+
+    return "Unknown";
+}
+
+
+
+bool isSystemEDU(EDU_TYPES type)
+{
+    std::map<EDU_TYPES,EDU_TYPES>::iterator it=mapEDUTypeSys.find(type);
+    return it==mapEDUTypeSys.end()?false:true;
+}
+
+
+pmdEDUCB::pmdEDUCB(pmdEDUMgr *mgr,EDU_TYPES type)
+:_type(type)
+,_mgr(mgr)
+,_status(PMD_EDU_CREATING)
+,_id(0)
+,_isForced(false)
+,_isDisconnected(false)
+{
+
+}
+
+
+struct _eduEntryInfo
+{
+    EDU_TYPES type;
+    int       regResult;
+    pmdEntryPoint  entryFunc;//回调函数
+};
+
+#define ON_EDUTYPE_TO_ENTRY(type,system,entry,desp) \
+    {type,registerEDUName(type,desp,system),entry}
+
+pmdEntryPoint getEntryFuncByType ( EDU_TYPES type )
+{
+    pmdEntryPoint rt = NULL;
+    static const _eduEntryInfo entry[]={
+        ON_EDUTYPE_TO_ENTRY(EDU_TYPE_AGENT,false,pmdAgentEntryPoint,"Agent"),
+        ON_EDUTYPE_TO_ENTRY(EDU_TYPE_TCPLISTENER,true,pmdTcpListenerEntryPoint,"TCPListener"),
+        ON_EDUTYPE_TO_ENTRY(EDU_TYPE_MAXIMUM,false,NULL,"Unknown")
+    };
+
+    static const unsigned int number =sizeof(entry) /sizeof(_eduEntryInfo);
+
+    unsigned int index =0;
+    for(;index<number;++index)
+    {
+        if(entry[index].type==type)
+        {
+            rt = entry[index].entryFunc;
+            goto done;
+        }
+    }
+done:
+    return rt;
+}
+
+int pmdRecv(char *pBuffer,int recvSize,ossSocket *sock,pmdEDUCB *cb)
+{
+    int rc = EDB_OK;
+    assert(sock!=NULL);
+    assert(cb!=NULL);
+    while(true)
+    {
+        if(cb->isForced())
+        {
+            rc = EDB_APP_FORCED;
+            goto done;
+        }
+        rc = sock->recv(pBuffer,recvSize);
+        if(EDB_TIMEOUT == rc)
+        {
+            continue;
+        }
+        goto done;
+    }
+
+done:
+    return rc;
+
+}
+
+int pmdSend(const char *pBuffer,int sendSize,ossSocket *sock,pmdEDUCB *cb)
+{
+    int rc = EDB_OK;
+    assert(sock!=NULL);
+    assert(cb!=NULL);
+
+    while (true)
+    {
+        if(cb->isForced())
+        {
+            rc = EDB_APP_FORCED;
+            goto done;
+        }
+        rc = sock->send(pBuffer,sendSize);
+        if(EDB_TIMEOUT == rc)
+        {
+            continue;
+        }
+        goto done ;
+    }
+    
+done:
+    return rc;
+
+}
+
+int pmdEDUEntryPoint( EDU_TYPES type,pmdEDUCB *cb, void *arg)
+{
+    int rc = EDB_OK;
+    EDUID myEDUID = cb->getID();
+    pmdEDUMgr *eduMgr = cb->getEDUMgr();
+    pmdEDUEvent event;
+    bool eduDestroyed = false;
+    bool  isForced = false;
+    //main loop
+    while(!eduDestroyed)
+    {
+        type = cb->getType();
+        //wait for 1000 millseconds for event
+        if(!cb->waitEvent(event,1000))
+        {
+            if(cb->isForced())
+            {
+                OSS_LOG(LOG_EVENT,"EDU %lld is forced ",myEDUID);
+                isForced = true;
+            }
+            else 
+                continue;
+        }
+
+        if(!isForced && PMD_EDU_EVENT_RESUME ==event._eventType)
+        {
+            //set EDU status to wait
+            eduMgr->waitEDU(myEDUID);
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+
+
+
+    return 0;
+}
+
+
+
+
+
+
+
+
+
