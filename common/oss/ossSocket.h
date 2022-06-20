@@ -1,5 +1,6 @@
 #pragma once
-#include  "core.hpp"
+#include  "linuxinclude.h"
+#include   "commontype.h"
 #define SOCKET_GETLASTERROR errno
 
 // by default 10ms timeout

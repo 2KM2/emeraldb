@@ -1,5 +1,9 @@
 #pragma once
-#include "core.hpp"
+
+#include "linuxinclude.h"
+#include "commondef.h"
+#include "commontype.h"
+
 
 #define OSS_F_GETLK        F_GETLK64
 #define OSS_F_SETLK        F_SETLK64
@@ -26,6 +30,7 @@
 #define oss_read           read
 #define oss_write          write
 
+
 #define OSS_PRIMITIVE_FILE_OP_FWRITE_BUF_SIZE 2048
 #define OSS_PRIMITIVE_FILE_OP_READ_ONLY     (((unsigned int)1) << 1)
 #define OSS_PRIMITIVE_FILE_OP_WRITE_ONLY    (((unsigned int)1) << 2)
@@ -33,18 +38,33 @@
 #define OSS_PRIMITIVE_FILE_OP_OPEN_ALWAYS   (((unsigned int)1) << 4)
 #define OSS_PRIMITIVE_FILE_OP_OPEN_TRUNC    (((unsigned int)1) << 5)
 
+
 #define OSS_INVALID_HANDLE_FD_VALUE (-1)
 
-typedef oss_off_t  offsetType;
+
+typedef oss_off_t offsetType ;
+
 
 class ossPrimitiveFileOp
 {
-public:
-    typedef   int handleType;//file fd
+public :
+   typedef  int    handleType ;
+private :
+   handleType _fileHandle ;
+   ossPrimitiveFileOp( const ossPrimitiveFileOp & ) {}
+   const ossPrimitiveFileOp &operator=( const ossPrimitiveFileOp & ) ;
+   bool _bIsStdout ;
 
-public:
+protected :
+   void setFileHandle( handleType handle ) ;
+
+public :
    ossPrimitiveFileOp() ;
-   int Open(const char * pFilePath,unsigned int options = OSS_PRIMITIVE_FILE_OP_OPEN_ALWAYS) ;
+   int Open
+   (
+      const char * pFilePath,
+      unsigned int options = OSS_PRIMITIVE_FILE_OP_OPEN_ALWAYS
+   ) ;
    void openStdout() ;
    void Close() ;
    bool isValid( void ) ;
@@ -64,20 +84,9 @@ public:
 
    handleType getHandle( void ) const
    {
-      return m_fileHandle ;
+      return _fileHandle ;
    }
-
-
-protected:
-    void setFileHandle(handleType handle);
-private:
-    const ossPrimitiveFileOp &operator=( const ossPrimitiveFileOp & ) ;
-private:
-    handleType m_fileHandle;
-    bool  m_bIsStdout;
 
 
 
 };
-
-

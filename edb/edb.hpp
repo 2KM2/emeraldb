@@ -1,8 +1,9 @@
 #pragma once
-#include "core.hpp"
+#include  "linuxinclude.h"
+#include  "commontype.h"
 #include "command.hpp"
 #include "commandFactory.hpp"
-#include "ossSocket.hpp"
+#include "ossSocket.h"
 #include <iostream>
 using namespace std;
 const int CMD_BUFFER_SIZE = 512;

@@ -1,4 +1,5 @@
-#include "core.hpp"
+#include "linuxinclude.h"
+#include "commontype.h"
 #include "edb.hpp"
 const char    SPACE             =  ' ';
 const char    TAB               =  '\t';

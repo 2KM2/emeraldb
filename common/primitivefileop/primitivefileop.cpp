@@ -1,30 +1,26 @@
-#include "ossPrimitiveFileOp.hpp"
-#include  "core.hpp"
-
+#include "linuxinclude.h"
+#include "primitivefileop.h"
 ossPrimitiveFileOp::ossPrimitiveFileOp()
 {
-    m_fileHandle = OSS_INVALID_HANDLE_FD_VALUE;
-    m_bIsStdout = false;
+   _fileHandle = OSS_INVALID_HANDLE_FD_VALUE ;
+   _bIsStdout  = false ;
 }
 
-
-
-bool ossPrimitiveFileOp::isValid()
+bool ossPrimitiveFileOp::isValid ()
 {
-    return (OSS_INVALID_HANDLE_FD_VALUE !=m_fileHandle);
+   return ( OSS_INVALID_HANDLE_FD_VALUE != _fileHandle ) ;
 }
-
 
 void ossPrimitiveFileOp::Close()
 {
-    if(isValid()&&(!m_bIsStdout))
-    {
-        oss_close(m_fileHandle);
-        m_fileHandle = OSS_INVALID_HANDLE_FD_VALUE;
-    }
+   if ( isValid() && ( ! _bIsStdout ) )
+   {
+      oss_close( _fileHandle ) ;
+      _fileHandle = OSS_INVALID_HANDLE_FD_VALUE ;
+   }
 }
 
-int ossPrimitiveFileOp::Open(const char * pFilePath,unsigned int options)
+int ossPrimitiveFileOp::Open( const char * pFilePath, unsigned int options )
 {
    int rc = 0 ;
    int mode = O_RDWR ;
@@ -52,10 +48,10 @@ int ossPrimitiveFileOp::Open(const char * pFilePath,unsigned int options)
 
    do
    {
-      m_fileHandle = oss_open( pFilePath, mode, 0644 ) ;
-   } while (( -1 == m_fileHandle ) && ( EINTR == errno )) ;
+      _fileHandle = oss_open( pFilePath, mode, 0644 ) ;
+   } while (( -1 == _fileHandle ) && ( EINTR == errno )) ;
 
-   if ( m_fileHandle <= OSS_INVALID_HANDLE_FD_VALUE )
+   if ( _fileHandle <= OSS_INVALID_HANDLE_FD_VALUE )
    {
       rc = errno ;
       goto exit ;
@@ -65,57 +61,56 @@ exit :
    return rc ;
 }
 
-
 void ossPrimitiveFileOp::openStdout()
 {
    setFileHandle(STDOUT_FILENO) ;
-   m_bIsStdout = true ;
+   _bIsStdout = true ;
 }
 
-
-offsetType ossPrimitiveFileOp::getCurrentOffset() const
+offsetType ossPrimitiveFileOp::getCurrentOffset () const
 {
-    return oss_lseek(m_fileHandle,0,SEEK_CUR);
+  return oss_lseek( _fileHandle, 0, SEEK_CUR ) ;
 }
 
-void ossPrimitiveFileOp::seekToOffset(offsetType offset)
+void ossPrimitiveFileOp::seekToEnd( void )
+{
+   oss_lseek( _fileHandle, 0, SEEK_END ) ;
+}
+
+void ossPrimitiveFileOp::seekToOffset( offsetType offset )
 {
    if ( ( oss_off_t )-1 != offset )
    {
-      oss_lseek( m_fileHandle, offset, SEEK_SET ) ;
+      oss_lseek( _fileHandle, offset, SEEK_SET ) ;
    }
 }
 
-
-
-int ossPrimitiveFileOp::Read(const size_t size,void *const pBuffer,int  *const pBytesRead)
+int ossPrimitiveFileOp::Read ( const size_t size,
+                               void * const pBuffer,
+                               int * const  pBytesRead )
 {
-    int retval = 0;
-    ssize_t bytesRead = 0 ;
-    if(isValid())
-    {
-        do
-        {
-           bytesRead = oss_read( m_fileHandle, pBuffer, size ) ;
-        } while (( -1 == bytesRead ) && ( EINTR == errno ));
+   int     retval    = 0 ;
+   ssize_t bytesRead = 0 ;
+   if ( isValid() )
+   {
+      do
+      {
+         bytesRead = oss_read( _fileHandle, pBuffer, size ) ;
+      } while (( -1 == bytesRead ) && ( EINTR == errno )) ;
+      if ( -1 == bytesRead )
+      {
+         goto err_read ;
+      }
+   }
+   else
+   {
+      goto err_read ;
+   }
 
-        if(-1==bytesRead)
-        {
-            goto err_read;
-        }
-    }
-    else
-    {
-        goto err_read;
-    }
-
-
-
-    if(pBytesRead)
-    {
-        *pBytesRead =  bytesRead;
-    }
-
+   if ( pBytesRead )
+   {
+      *pBytesRead = bytesRead ;
+   }
 exit :
    return retval ;
 
@@ -123,11 +118,7 @@ err_read :
    *pBytesRead = 0 ;
    retval      = errno ;
    goto exit ;
-
 }
-
-
-
 
 int ossPrimitiveFileOp::Write( const void * pBuffer, size_t size )
 {
@@ -142,7 +133,7 @@ int ossPrimitiveFileOp::Write( const void * pBuffer, size_t size )
    {
       do
       {
-         rc = oss_write( m_fileHandle, &((char*)pBuffer)[currentSize],
+         rc = oss_write( _fileHandle, &((char*)pBuffer)[currentSize],
                          size-currentSize ) ;
          if ( rc >= 0 )
             currentSize += rc ;
@@ -176,7 +167,7 @@ int ossPrimitiveFileOp::fWrite( const char * format, ... )
 
 void ossPrimitiveFileOp::setFileHandle( handleType handle )
 {
-   m_fileHandle = handle ;
+   _fileHandle = handle ;
 }
 
 int ossPrimitiveFileOp::getSize( offsetType * const pFileSize )
@@ -184,7 +175,7 @@ int ossPrimitiveFileOp::getSize( offsetType * const pFileSize )
    int             rc        = 0 ;
    oss_struct_stat buf       = { 0 } ;
 
-   if ( -1 == oss_fstat( m_fileHandle, &buf ) )
+   if ( -1 == oss_fstat( _fileHandle, &buf ) )
    {
       rc = errno ;
       goto err_exit ;
@@ -198,9 +189,4 @@ exit :
 err_exit :
    *pFileSize = 0 ;
    goto exit ;
-}
-
-void ossPrimitiveFileOp::seekToEnd( void )
-{
-   oss_lseek( m_fileHandle, 0, SEEK_END ) ;
 }

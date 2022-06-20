@@ -9,7 +9,7 @@ include $(BUILD_DIR)/src.mk
 
 FINAL_TARGET := $(BUILD_OUTPUT_SUB_DIR)/$(TARGET)
 
-$(info $(TARGET_DIR) $(TARGET) $(SUB_DIR))
+#$(info $(TARGET_DIR) $(TARGET) $(SUB_DIR))
 
 OBJ_OF_C := $(patsubst $(TARGET_DIR)/%.o,$(BUILD_OUTPUT_SUB_DIR)/%.o,$(patsubst %.c,%.o,$(SRC_FILE_C)))
 OBJ_OF_CPP := $(patsubst $(TARGET_DIR)/%.o,$(BUILD_OUTPUT_SUB_DIR)/%.o,$(patsubst %.cpp,%.o,$(SRC_FILE_CPP)))

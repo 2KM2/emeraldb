@@ -1,8 +1,10 @@
 #pragma once
 
-#include "core.hpp"
+#include "linuxinclude.h"
+#include "commondef.h"
+#include "commontype.h"
 #include <bson/src/util/json.h>
-#include "ossSocket.hpp"
+#include "ossSocket.h"
 
 
 #define COMMAND_QUIT         "quit"

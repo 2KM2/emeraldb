@@ -1,4 +1,4 @@
-#include "ossSocket.hpp"
+#include "ossSocket.h"
 
 ossSocket::ossSocket()
 {
