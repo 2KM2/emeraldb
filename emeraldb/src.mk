@@ -1,4 +1,4 @@
-TARGET :=emeraldb
+TARGET := emeraldb
 
 SRC_DIR := $(shell find $(TARGET_DIR) -maxdepth 5 -type d)
 

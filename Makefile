@@ -31,17 +31,18 @@ TARGETS_BIN += emeraldb
 
 TARGETS := $(TARGETS_LIB) $(TARGETS_BIN)
 
+all: $(TARGETS)
+
 
 $(TARGETS_BIN): common
-
 $(TARGETS):
-	@make $(BUILD)=$@
+	@$(MAKE) $(BUILD)=$@
 
 
 
 subclean := $(foreach d,$(TARGETS),clean-$(d))
 $(subclean):
-	@make $(BUILD)=$(subst clean-,,$@) clean
+	@$(MAKE) $(BUILD)=$(subst clean-,,$@) clean
 
 clean: $(subclean)
 

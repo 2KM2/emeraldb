@@ -200,3 +200,7 @@ err_exit :
    goto exit ;
 }
 
+void ossPrimitiveFileOp::seekToEnd( void )
+{
+   oss_lseek( m_fileHandle, 0, SEEK_END ) ;
+}
