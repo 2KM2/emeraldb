@@ -28,10 +28,24 @@ typedef enum _log_level_e
 #define EDB_ASSERT(cond,str)  {if(cond){}}
 #define EDB_CHECK(cond,str)   {if(cond){}}
 
-#define EDB_VALIDATE_GOTOERROR(cond,ret,str)                          \
-   {if(!(cond)) { LOG_API_Print(LOG_ERROR, __func__, __FILE__, __LINE__, str) ; \
-    rc = ret; goto error ; }}
+#define PD_CHECK(cond,retCode,gotoLabel,level,fmt,...)                \
+   do {                                                               \
+      if ( !(cond) )                                                  \
+      {                                                               \
+         rc = (retCode) ;                                             \
+         OSS_LOG  ( (level), fmt, ##__VA_ARGS__) ;                     \
+         goto gotoLabel ;                                             \
+      }                                                               \
+   } while ( 0 )                                                      \
 
+#define PD_RC_CHECK(rc,level,fmt,...)                                 \
+   do {                                                               \
+      PD_CHECK ( (EDB_OK==(rc)), (rc), error, (level),                \
+                 fmt, ##__VA_ARGS__) ;                                \
+   } while ( 0 )                                                      \
+
+
+#define EDB_VALIDATE_GOTOERROR(cond,ret,str) if(!(cond)) { LOG_API_Print(LOG_ERROR, __func__, __FILE__, __LINE__, str) ;  rc = ret; goto error ; }
     
 const char *getLOGLevelDesp(LOG_LEVEL_E level);
 INTERFACE_API int LOG_API_SetPara(int printlevel, int direction, char *directionstr);

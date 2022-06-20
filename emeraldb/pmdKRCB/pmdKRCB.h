@@ -2,7 +2,7 @@
 #include  "linuxinclude.h"
 #include  "commontype.h"
 #include  "commondef.h"
-
+#include  "pmdEDUMgr.h"
 typedef enum EDB_DB_STATUS
 {
     EDB_DB_NORMAL = 0,
@@ -38,7 +38,8 @@ private:
     int  _maxPool;
     char  _svcName[NI_MAXSERV+1];
     EDB_DB_STATUS _dbStatus;
-
+private :
+   pmdEDUMgr     _eduMgr ;
 public:
     EDB_KRCB()
     {
@@ -52,6 +53,10 @@ public:
     {
 
     }
+    pmdEDUMgr *getEDUMgr ()
+   {
+      return &_eduMgr ;
+   }
     //get database status
     inline EDB_DB_STATUS getDBStatus()
     {

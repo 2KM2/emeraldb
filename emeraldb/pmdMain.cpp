@@ -3,6 +3,7 @@
 #include  "signalhandle.h"
 #include  "pmdKRCB.h"
 #include  "pmdOptions.h"
+#include  "pmdEDUMgr.h"
 using namespace std;
 static int pmdResolveArguments ( int argc, char **argv )
 {
@@ -31,20 +32,19 @@ int pmdMasterThreadMain(int argc,char **argv)
 {
     int rc = EDB_OK;
     EDB_KRCB * krcb = pmdGetKRCB();
-
+    pmdEDUMgr *eduMgr   = krcb->getEDUMgr () ;
+   EDUID      agentEDU = PMD_INVALID_EDUID ;
     RegisterCommonSignalHandle();
 
     LOG_API_SetPara(LOG_LEVEL_E::LOG_INFO,LOG_DIRECTION_E::LOG_TO_STD,NULL);
 
     // arguments
     rc = pmdResolveArguments ( argc, argv ) ;
-    if ( EDB_PMD_HELP_ONLY == rc )
+    rc = eduMgr->startEDU ( EDU_TYPE_TCPLISTENER, NULL, &agentEDU ) ;
+    PD_RC_CHECK ( rc, LOG_ERROR, "Failed to start tcplistener edu, rc = %d", rc ) ;
+    while ( EDB_IS_DB_UP )
     {
-       goto done ;
-    }
-    while(EDB_IS_DB_DOWN)
-    {
-        sleep(1);
+       sleep(1) ;
     }
 done:
     return rc;
@@ -57,9 +57,6 @@ error:
 
 int main(int argc,char **argv)
 {
-    RegisterCommonSignalHandle();
-
-    LOG_API_SetPara(LOG_LEVEL_E::LOG_INFO, LOG_DIRECTION_E::LOG_TO_STD, NULL);
     OSS_LOG(LOG_INFO, "start emeralddb\n");
-    pmdTcpListenerEntryPoint();
+    return pmdMasterThreadMain ( argc, argv ) ;
 }
