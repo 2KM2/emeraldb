@@ -20,11 +20,20 @@ typedef enum _log_level_e
     LOG_INFO    = 4,
     LOG_DEBUG   = 5,
 } LOG_LEVEL_E;
-const char *getLOGLevelDesp(LOG_LEVEL_E level);
 
+
+
+
+#define OSS_LOG(level,fmt, ...) LOG_API_Print(level,__FILE__,__FUNCTION__,__LINE__,fmt,##__VA_ARGS__)
+#define EDB_ASSERT(cond,str)  {if(cond){}}
+#define EDB_CHECK(cond,str)   {if(cond){}}
+
+#define EDB_VALIDATE_GOTOERROR(cond,ret,str)                          \
+   {if(!(cond)) { LOG_API_Print(LOG_ERROR, __func__, __FILE__, __LINE__, str) ; \
+    rc = ret; goto error ; }}
+
+    
+const char *getLOGLevelDesp(LOG_LEVEL_E level);
 INTERFACE_API int LOG_API_SetPara(int printlevel, int direction, char *directionstr);
 
 INTERFACE_API void LOG_API_Print(LOG_LEVEL_E level, const char *file, const char *func, int line, const char *fmt, ...);
-
-#define OSS_LOG(level,fmt, ...) LOG_API_Print(level,__FILE__,__FUNCTION__,__LINE__,fmt,##__VA_ARGS__)
-

@@ -2,6 +2,7 @@
 #include  "pmdEDU.h"
 #include  "logprint.h"
 #include  "pmdEDUMgr.h"
+#include  "pmdKRCB.h"
 static std::map<EDU_TYPES,std::string> mapEDUName;
 static std::map<EDU_TYPES,EDU_TYPES> mapEDUTypeSys;
 
@@ -175,32 +176,59 @@ int pmdEDUEntryPoint( EDU_TYPES type,pmdEDUCB *cb, void *arg)
         {
             //set EDU status to wait
             eduMgr->waitEDU(myEDUID);
+            pmdEntryPoint entryFunc = getEntryFuncByType(type);
+            if(!entryFunc)
+            {
+                OSS_LOG(LOG_ERROR, "EDU %lld type %d entry point func is NULL",myEDUID, type ) ;
+                EDB_SHUTDOWN_DB;
+                rc = EDB_SYS ;
+            }
+            else
+            {
+                rc = entryFunc(cb,event._Data);
+            }
+
+            if(EDB_IS_DB_UP)
+            {
+                if(isSystemEDU(cb->getType()))
+                {
+                    OSS_LOG ( LOG_ERROR, "System EDU: %lld, type %s exits with %d",myEDUID, getEDUName(type), rc ) ;
+                     EDB_SHUTDOWN_DB
+                }
+                else if(rc)
+                {
+
+                }
+            }
+            eduMgr->waitEDU(myEDUID);
+        }
+        else if(!isForced &&PMD_EDU_EVENT_TERM !=event._eventType)
+        {
+            OSS_LOG(LOG_ERROR, "Receive the wrong event %d in EDU %lld, type %s",
+                  event._eventType, myEDUID, getEDUName(type) ) ;
+
+            rc = EDB_SYS;
+        }
+        else if ( isForced && PMD_EDU_EVENT_TERM == event._eventType && cb->isForced() )
+        {
+          OSS_LOG ( LOG_ERROR, "EDU %lld, type %s is forced", myEDUID, type ) ;
+             isForced = true ;
         }
 
+        if ( !isForced && event._Data && event._release )
+        {
+           free ( event._Data ) ;
+           event.reset () ;
+        }
 
+          rc = eduMgr->returnEDU ( myEDUID, isForced, &eduDestroyed ) ;
 
-
-
-
-
-
-
-
-
-
-
-
+        if ( rc )
+        {
+           OSS_LOG ( LOG_ERROR, "Invalid EDU Status for EDU: %lld, type %s", myEDUID, getEDUName(type) ) ;
+        }
+        OSS_LOG ( LOG_DEBUG, "Terminating thread for EDU: %lld, type %s",myEDUID, getEDUName(type) ) ;
     }
-
-
-
-
-
-
-
-
-
-
     return 0;
 }
 

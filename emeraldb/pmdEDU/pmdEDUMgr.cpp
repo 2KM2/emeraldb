@@ -337,3 +337,358 @@ done :
 error :
    goto done ;
 }
+int pmdEDUMgr::_createNewEDU ( EDU_TYPES type, void* arg, EDUID *eduid )
+{
+   int rc = EDB_OK;
+   unsigned int probe = 0;
+   pmdEDUCB  *cb =NULL;
+   EDUID  myEDUID = 0;
+   if(isQuiesced())
+   {
+      rc = EDB_QUIESCED;
+      goto done;
+   }
+   if(!getEntryFuncByType(type))
+   {
+      OSS_LOG(LOG_ERROR,"The edu[type:%d] not exist or function is null", type ) ;
+      rc =EDB_INVALIDARG;
+      probe = 30;
+      goto error;
+   }
+   cb = new(std::nothrow)pmdEDUCB(this,type);
+   EDB_VALIDATE_GOTOERROR(cb,EDB_OOM,"Out of memory to create agent control block");
+   cb->setStatus(PMD_EDU_CREATING);
+
+   _mutex.get();
+     // if the EDU exist in runqueue
+   if(_runQueue.end()!=_runQueue.find(_EDUID))
+   {
+      _mutex.release();
+      rc = EDB_SYS;
+      probe = 10;
+      goto error;
+   }
+    // if the EDU exist in idle queue
+   if ( _idleQueue.end() != _idleQueue.find ( _EDUID )  )
+   {
+      _mutex.release () ;
+      rc = EDB_SYS ;
+      probe = 15 ;
+      goto error ;
+   }
+
+   // assign EDU id and increment global EDUID
+   cb->setID ( _EDUID ) ;
+   if ( eduid )
+      *eduid = _EDUID ;
+      // place cb into runqueue
+   _runQueue [ _EDUID ] = ( pmdEDUCB* ) cb ;
+   myEDUID = _EDUID ;
+   ++_EDUID ;
+   _mutex.release () ;
+
+   try
+   {
+      boost::thread agentThread (pmdEDUEntryPoint, type, cb, arg ) ;
+      // detach the agent so that he's all on his own
+      // we only track based on CB
+      agentThread.detach () ;
+   }
+   catch(const std::exception& e)
+   {
+      // if we failed to create thread, make sure to clean runqueue
+      _runQueue.erase ( myEDUID ) ;
+      rc = EDB_SYS ;
+      probe = 20 ;
+      goto error ;
+   }
+   
+
+   //The edu is create, need post a resum event
+   cb->postEvent(pmdEDUEvent( PMD_EDU_EVENT_RESUME, false, arg ) ) ;
+
+done:
+   return rc;
+error:
+   if(cb)
+   {
+      delete cb;
+   }
+   OSS_LOG(LOG_ERROR,"Failed to create new agent, probe = %d", probe ) ;
+   goto done;
+}
+
+int pmdEDUMgr::_destroyEDU( EDUID eduID)
+{
+   int rc = EDB_OK ;
+   pmdEDUCB *eduCB = NULL;
+
+   unsigned int eduStatus  = PMD_EDU_CREATING;
+
+   std::map<EDUID, pmdEDUCB*>::iterator it ;
+   std::map<unsigned int,EDUID>::iterator it1;
+
+   _mutex.get();
+      // try to find the edu id in runqueue
+   // Since this is private function, no latch is needed
+   if(_runQueue.end ()==( it = _runQueue.find ( eduID )))
+   {
+      if ( _idleQueue.end () == ( it = _idleQueue.find ( eduID )) )
+      {
+         // we can't find edu id anywhere
+         rc = EDB_SYS ;
+         goto error ;
+      }
+      eduCB = ( *it ).second ;
+      if(!PMD_IS_EDU_IDLE(eduCB->getStatus()))
+      {
+         rc = EDB_EDU_INVAL_STATUS;
+         goto error ;
+      }
+      //set the status to destroyed
+      eduCB->setStatus(PMD_EDU_DESTROY);
+      _idleQueue.erase(eduID);
+   }
+   else //if we find in run queue we expect waiting status
+   {
+      eduCB = ( *it ).second ;
+      eduStatus = eduCB->getStatus () ;
+      if(!PMD_IS_EDU_WAITING(eduStatus)&&!PMD_IS_EDU_CREATING ( eduStatus ))
+      {
+         rc = EDB_EDU_INVAL_STATUS;
+         goto error;
+      }
+      eduCB->setStatus ( PMD_EDU_DESTROY ) ;
+      _runQueue.erase ( eduID ) ;
+   }
+
+   // clean up tid/eduid map
+   for ( it1 = _tid_eduid_map.begin(); it1 != _tid_eduid_map.end();
+         ++it1 )
+   {
+      if ( (*it1).second == eduID )
+      {
+         _tid_eduid_map.erase ( it1 ) ;
+         break ;
+      }
+   }
+   if ( eduCB )
+      delete ( eduCB ) ;
+done :
+   _mutex.release () ;
+   return rc ;
+error :
+   goto done ;
+}
+
+// change edu status from running to waiting
+
+int pmdEDUMgr::waitEDU( EDUID eduID)
+{
+   int rc = EDB_OK ;
+   pmdEDUCB *eduCB  = NULL ;
+   unsigned int eduStatus = PMD_EDU_CREATING ;
+   std::map<EDUID, pmdEDUCB*>::iterator it ;
+   _mutex.get_shared () ;
+   if ( _runQueue.end () == ( it = _runQueue.find ( eduID )) )
+   {
+      // we can't find EDU in run queue
+      rc = EDB_SYS ;
+      goto error ;
+   }
+   
+   eduCB = ( *it ).second ;
+   eduStatus = eduCB->getStatus () ;
+
+   if(PMD_IS_EDU_WAITING(eduStatus))
+   {
+      goto done;
+   }
+   if(!PMD_IS_EDU_RUNNING(eduStatus))
+   {
+      rc = EDB_EDU_INVAL_STATUS;
+      goto error;
+   }
+   eduCB->setStatus ( PMD_EDU_WAITING ) ;
+done :
+   _mutex.release_shared () ;
+   /************* END CRITICAL SECTION **************/
+   return rc ;
+error :
+   goto done ;
+}
+
+// creating/waiting status edu can be deactivated (pooled)
+// deactivateEDU supposed only happened to AGENT EDUs
+// any EDUs other than AGENT will be destroyed and EDB_SYS will be returned
+int pmdEDUMgr::_deactivateEDU( EDUID eduID)
+{
+   int rc = EDB_OK;
+   unsigned int eduStatus  = PMD_EDU_CREATING ;
+   pmdEDUCB * eduCB = NULL ;
+   std::map<EDUID, pmdEDUCB*>::iterator it ;
+   _mutex.get () ;
+   if ( _runQueue.end () == ( it = _runQueue.find ( eduID )) )
+   {
+      if ( _idleQueue.end() != _idleQueue.find ( eduID )  )
+      {
+         goto done ;
+      }
+      rc =EDB_SYS;
+      goto error ;
+   }
+   eduCB  = ( *it ).second ;
+
+   eduStatus = eduCB->getStatus();
+
+   if(PMD_IS_EDU_IDLE(eduStatus))
+   {
+      goto done ;
+   }
+
+   if(!PMD_IS_EDU_WAITING(eduStatus)&&!PMD_IS_EDU_CREATING( eduStatus))
+   {
+      rc = EDB_EDU_INVAL_STATUS;
+      goto error;
+   }
+   // only Agent can be deactivated (pooled), other system
+   // EDUs can only be destroyed
+   EDB_ASSERT(isPoolable(eduCB->getType()),"Only agent can be pooled");
+
+   _runQueue.erase( eduID);//移除
+   eduCB->setStatus ( PMD_EDU_IDLE ) ;
+   _idleQueue [ eduID ] = eduCB ;//添加
+done:
+   _mutex.release();
+   return rc;
+
+error :
+   goto done ;
+
+}
+
+int pmdEDUMgr::activateEDU ( EDUID eduID )
+{
+   int rc = EDB_OK ;
+   unsigned int eduStatus  = PMD_EDU_CREATING ;
+   pmdEDUCB *eduCB = NULL ;
+   std::map<EDUID, pmdEDUCB*>::iterator it ;
+   
+   _mutex.get();
+
+   if(_idleQueue.end () == ( it = _idleQueue.find ( eduID )))
+   {
+      if(_runQueue.end () == ( it = _runQueue.find ( eduID )))
+      {
+         rc = EDB_SYS;
+         goto error;
+      }
+
+      eduCB = ( *it ).second ;
+
+      // in runqueue we may have creating/waiting status
+      eduStatus = eduCB->getStatus () ;
+
+      if(PMD_IS_EDU_RUNNING(eduStatus))
+      {
+         goto done ;
+      }
+      if(!PMD_IS_EDU_WAITING(eduStatus) &&!PMD_IS_EDU_CREATING( eduStatus))
+      {
+         rc = EDB_EDU_INVAL_STATUS;
+         goto error;
+      }
+      eduCB->setStatus( PMD_EDU_RUNNING);
+      goto done;
+   }
+
+   eduCB = ( *it ).second ;
+   eduStatus = eduCB->getStatus () ;
+   if ( PMD_IS_EDU_RUNNING ( eduStatus ) )
+      goto done ;
+   if ( !PMD_IS_EDU_IDLE ( eduStatus ) )
+   {
+      rc = EDB_EDU_INVAL_STATUS ;
+      goto error ;
+   }
+    // now the EDU status is idle, let's bring it to RUNNING
+   _idleQueue.erase ( eduID ) ;
+   eduCB->setStatus ( PMD_EDU_RUNNING ) ;
+   _runQueue [ eduID ] = eduCB ;
+done :
+   _mutex.release () ;
+   return rc ;
+error :
+   goto done ;
+}
+
+
+// get pmdEDUCB for the given thread id
+pmdEDUCB *pmdEDUMgr::getEDU ( unsigned int tid )
+{
+   std::map<unsigned int, EDUID>::iterator it ;
+   std::map<EDUID, pmdEDUCB*>::iterator it1 ;
+   EDUID eduid ;
+   pmdEDUCB *pResult = NULL ;
+   _mutex.get_shared () ;
+   it = _tid_eduid_map.find ( tid ) ;
+   if ( _tid_eduid_map.end() == it )
+   {
+      pResult = NULL ;
+      goto done ;
+   }
+   eduid = (*it).second ;
+   it1 = _runQueue.find ( eduid ) ;
+   if ( _runQueue.end() != it1 )
+   {
+      pResult = (*it1).second ;
+      goto done ;
+   }
+   it1 = _idleQueue.find ( eduid ) ;
+   if ( _idleQueue.end() != it1 )
+   {
+      pResult = (*it1).second ;
+      goto done ;
+   }
+done :
+   _mutex.release_shared () ;
+   return pResult ;
+}
+
+
+void pmdEDUMgr::setEDU ( unsigned int tid, EDUID eduid )
+{
+   _mutex.get() ;
+   _tid_eduid_map [ tid ] = eduid ;
+   _mutex.release () ;
+}
+
+// get pmdEDUCB for the current thread
+pmdEDUCB *pmdEDUMgr::getEDU ()
+{
+   return getEDU ( ossGetCurrentThreadID() ) ;
+}
+
+pmdEDUCB *pmdEDUMgr::getEDUByID ( EDUID eduID )
+{
+   std::map<EDUID, pmdEDUCB*>::iterator it ;
+   pmdEDUCB *pResult = NULL ;
+   // shared lock the block, since we don't change anything
+   _mutex.get_shared () ;
+   if ( _runQueue.end () == ( it = _runQueue.find ( eduID )) )
+   {
+      // if we cannot find it in runqueue, we search for idle queue
+      // note that during the time, we already have EDUMgr locked,
+      // so thread cannot change queue from idle to run
+      // that means we are safe to exame both queues
+      if ( _idleQueue.end () == ( it = _idleQueue.find ( eduID )) )
+      {
+         // we can't find edu id anywhere
+         goto done ;
+      }
+   }
+   pResult = it->second ;
+done :
+   _mutex.release_shared () ;
+   return pResult ;
+}
