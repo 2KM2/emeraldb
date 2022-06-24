@@ -147,7 +147,7 @@ done:
     return rc;
 
 }
-
+//线程运行函数
 int pmdEDUEntryPoint( EDU_TYPES type,pmdEDUCB *cb, void *arg)
 {
     int rc = EDB_OK;
@@ -161,6 +161,7 @@ int pmdEDUEntryPoint( EDU_TYPES type,pmdEDUCB *cb, void *arg)
     {
         type = cb->getType();
         //wait for 1000 millseconds for event
+        // 1秒等到一次事件
         if(!cb->waitEvent(event,1000))
         {
             if(cb->isForced())
@@ -171,7 +172,7 @@ int pmdEDUEntryPoint( EDU_TYPES type,pmdEDUCB *cb, void *arg)
             else 
                 continue;
         }
-
+        //PMD_EDU_EVENT_RESUME事件
         if(!isForced && PMD_EDU_EVENT_RESUME ==event._eventType)
         {
             //set EDU status to wait
@@ -185,6 +186,7 @@ int pmdEDUEntryPoint( EDU_TYPES type,pmdEDUCB *cb, void *arg)
             }
             else
             {
+                //传入pmdEDU和数据
                 rc = entryFunc(cb,event._Data);
             }
 

@@ -274,6 +274,7 @@ int pmdEDUMgr::startEDU ( EDU_TYPES type, void* arg, EDUID *eduid )
    pmdEDUCB* eduCB = NULL ;
    std::map<EDUID, pmdEDUCB*>::iterator it ;
 
+   //挂起状态直接返回
    if ( isQuiesced () )
    {
       rc = EDB_QUIESCED ;
@@ -285,6 +286,9 @@ int pmdEDUMgr::startEDU ( EDU_TYPES type, void* arg, EDUID *eduid )
    _mutex.get () ;
    // if there's any pooled EDU?
    // or is the request type can be pooled ?
+   /**
+    * 空间队列为空 或者是Listen的线程
+   */
    if ( true == _idleQueue.empty () || !isPoolable ( type ) )
    {
       // note that EDU types other than "agent" shouldn't be pooled at all
@@ -297,6 +301,7 @@ int pmdEDUMgr::startEDU ( EDU_TYPES type, void* arg, EDUID *eduid )
    }
 
    // if we can find something in idle queue, let's get the first of it
+   //从空间队列中找到状态是PMD_EDU_IDLE的一个edu
    for ( it = _idleQueue.begin () ;
          ( _idleQueue.end () != it ) &&
          ( PMD_EDU_IDLE != ( *it ).second->getStatus ()) ;
@@ -304,6 +309,7 @@ int pmdEDUMgr::startEDU ( EDU_TYPES type, void* arg, EDUID *eduid )
 
    // if everything in idleQueue are in DESTROY status, we still need to
    // create a new EDU
+   //如果没找到就重新创建一个edu
    if ( _idleQueue.end () == it )
    {
       // release latch before calling createNewEDU
@@ -316,20 +322,24 @@ int pmdEDUMgr::startEDU ( EDU_TYPES type, void* arg, EDUID *eduid )
 
    // now "it" is pointing to an idle EDU
    // note that all EDUs in the idleQueue should be AGENT type
+   /*找到了一个空间的ide
+      获取eduid 和 educb
+   */
    eduID = ( *it ).first ;
    eduCB = ( *it ).second ;
    _idleQueue.erase ( eduID ) ;//从空闲队列移除
    EDB_ASSERT ( isPoolable ( type ),
                 "must be agent" )
    // switch agent type for the EDU ( call different agent entry point )
-   eduCB->setType ( type ) ;
-   eduCB->setStatus ( PMD_EDU_WAITING ) ;
+   eduCB->setType ( type ) ;//设置educb的类型
+   eduCB->setStatus ( PMD_EDU_WAITING ) ;//把状态设置为等待状态
    _runQueue [ eduID ] = eduCB ;//添加到运行队列
    *eduid = eduID ;
    _mutex.release () ;
    /*************** END CRITICAL SECTION **********************/
 
    //The edu is start, need post a resum event
+   //事件状态 PMD_EDU_EVENT_RESUME 传入参数
    eduCB->postEvent( pmdEDUEvent( PMD_EDU_EVENT_RESUME, false, arg ) ) ;
 
 done :
@@ -337,17 +347,22 @@ done :
 error :
    goto done ;
 }
+
 int pmdEDUMgr::_createNewEDU ( EDU_TYPES type, void* arg, EDUID *eduid )
 {
    int rc = EDB_OK;
    unsigned int probe = 0;
    pmdEDUCB  *cb =NULL;
    EDUID  myEDUID = 0;
+
+   //如果是挂起状态直接返回
    if(isQuiesced())
    {
       rc = EDB_QUIESCED;
       goto done;
    }
+
+   //判断是不是agent 或者listen的
    if(!getEntryFuncByType(type))
    {
       OSS_LOG(LOG_ERROR,"The edu[type:%d] not exist or function is null", type ) ;
@@ -355,12 +370,14 @@ int pmdEDUMgr::_createNewEDU ( EDU_TYPES type, void* arg, EDUID *eduid )
       probe = 30;
       goto error;
    }
+   //创建一个新的edu
    cb = new(std::nothrow)pmdEDUCB(this,type);
    EDB_VALIDATE_GOTOERROR(cb,EDB_OOM,"Out of memory to create agent control block");
-   cb->setStatus(PMD_EDU_CREATING);
+   cb->setStatus(PMD_EDU_CREATING);//设置为创建状态
 
    _mutex.get();
      // if the EDU exist in runqueue
+   //在运行队列中找edu id
    if(_runQueue.end()!=_runQueue.find(_EDUID))
    {
       _mutex.release();
@@ -369,6 +386,7 @@ int pmdEDUMgr::_createNewEDU ( EDU_TYPES type, void* arg, EDUID *eduid )
       goto error;
    }
     // if the EDU exist in idle queue
+    //判断是否存在在 空闲队列
    if ( _idleQueue.end() != _idleQueue.find ( _EDUID )  )
    {
       _mutex.release () ;
@@ -378,17 +396,19 @@ int pmdEDUMgr::_createNewEDU ( EDU_TYPES type, void* arg, EDUID *eduid )
    }
 
    // assign EDU id and increment global EDUID
+   //edu 分配一个id 
    cb->setID ( _EDUID ) ;
    if ( eduid )
       *eduid = _EDUID ;
       // place cb into runqueue
-   _runQueue [ _EDUID ] = ( pmdEDUCB* ) cb ;
+   _runQueue [ _EDUID ] = ( pmdEDUCB* ) cb ;//插入运行队列
    myEDUID = _EDUID ;
-   ++_EDUID ;
+   ++_EDUID ;//global 
    _mutex.release () ;
 
    try
    {
+      //创建一个线程 传入类型 edu 参数 
       boost::thread agentThread (pmdEDUEntryPoint, type, cb, arg ) ;
       // detach the agent so that he's all on his own
       // we only track based on CB
@@ -405,6 +425,7 @@ int pmdEDUMgr::_createNewEDU ( EDU_TYPES type, void* arg, EDUID *eduid )
    
 
    //The edu is create, need post a resum event
+   //设置状态为PMD_EDU_EVENT_RESUME
    cb->postEvent(pmdEDUEvent( PMD_EDU_EVENT_RESUME, false, arg ) ) ;
 
 done:
