@@ -73,15 +73,15 @@ int pmdTcpListenerEntryPoint(pmdEDUCB*cb , void*arg)
             OSS_LOG(LOG_ERROR,"Failed to accept socket in TcpListener\n" ) ;
             OSS_LOG(LOG_EVENT,"Restarting socket to listen\n" ) ;
             break;
-         }
+         } 
 
          //assing the socket to the arg
          void *pData = NULL ;//new client
          *((int *) &pData) = s ;
 
          //启动新的edu agent
+         OSS_LOG(LOG_DEBUG,"new accpent\n");
          rc = eduMgr->startEDU(EDU_TYPE_AGENT,pData,&agentEDU);
-         OSS_LOG(LOG_DEBUG,"Agent edu successfully\n");
          if(rc)
          {
             if(rc ==EDB_QUIESCED)

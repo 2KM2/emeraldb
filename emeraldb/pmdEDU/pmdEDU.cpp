@@ -180,7 +180,7 @@ int pmdEDUEntryPoint( EDU_TYPES type,pmdEDUCB *cb, void *arg)
             //如果强制退出
             if(cb->isForced())
             {
-                OSS_LOG(LOG_EVENT,"EDU %lld is forced ",myEDUID);
+                OSS_LOG(LOG_EVENT,"EDU %lld is forced\n",myEDUID);
                 isForced = true;
             }
             else 
@@ -197,7 +197,7 @@ int pmdEDUEntryPoint( EDU_TYPES type,pmdEDUCB *cb, void *arg)
             pmdEntryPoint entryFunc = getEntryFuncByType(type);
             if(!entryFunc)
             {
-                OSS_LOG(LOG_ERROR, "EDU %lld type %d entry point func is NULL",myEDUID, type ) ;
+                OSS_LOG(LOG_ERROR, "EDU %lld type %d entry point func is NULL\n",myEDUID, type ) ;
                 EDB_SHUTDOWN_DB;
                 rc = EDB_SYS ;
             }
@@ -205,6 +205,7 @@ int pmdEDUEntryPoint( EDU_TYPES type,pmdEDUCB *cb, void *arg)
             {
                 //传入pmdEDU和数据 执行函数
                 rc = entryFunc(cb,event._Data);
+                OSS_LOG( LOG_DEBUG,"entryFunc type:%d status: %d myEDUID :%d\n ",cb->getType(),rc,myEDUID);
             }
 
             //如果EDB是启动状态 
@@ -222,36 +223,36 @@ int pmdEDUEntryPoint( EDU_TYPES type,pmdEDUCB *cb, void *arg)
                 }
             }
             //把当前edu设置为等待状态 
-           // eduMgr->waitEDU(myEDUID);
+           eduMgr->waitEDU(myEDUID);
         }
         else if(!isForced &&PMD_EDU_EVENT_TERM !=event._eventType)//这个阶段只有resume 和terminate
         {
-            OSS_LOG(LOG_ERROR, "Receive the wrong event %d in EDU %lld, type %s",
-                  event._eventType, myEDUID, getEDUName(type) ) ;
+            OSS_LOG(LOG_ERROR, "Receive the wrong event %d in EDU %lld, type %s\n",event._eventType, myEDUID, getEDUName(type) ) ;
 
             rc = EDB_SYS;
         }
         else if ( isForced && PMD_EDU_EVENT_TERM == event._eventType && cb->isForced() ) //terminate 事件
         {
-          OSS_LOG ( LOG_ERROR, "EDU %lld, type %s is forced", myEDUID, type ) ;
+          OSS_LOG ( LOG_ERROR, "EDU %lld, type %s is forced\n", myEDUID, type ) ;
              isForced = true ;
         }
         //释放事件
+        OSS_LOG( LOG_ERROR,"LOG_ERROR  release %d\n",event._release);
         if ( !isForced && event._Data && event._release )
         {
+            OSS_LOG( LOG_ERROR,"pmdEvent reset\n");
            free ( event._Data ) ;
            event.reset () ;
         }
-
         rc = eduMgr->returnEDU ( myEDUID, isForced, &eduDestroyed ) ;//返回线程池 由线程池决定是否eduDestroyed
-
+        OSS_LOG( LOG_DEBUG," return edu status  eduDestroyed %d\n",rc,eduDestroyed);
         if ( rc )
         {
-           OSS_LOG ( LOG_ERROR, "Invalid EDU Status for EDU: %lld, type %s", myEDUID, getEDUName(type) ) ;
+           OSS_LOG ( LOG_ERROR, "Invalid EDU Status for EDU: %lld, type %s\n", myEDUID, getEDUName(type) ) ;
         }
-        OSS_LOG ( LOG_DEBUG, "Terminating thread for EDU: %lld, type %s",myEDUID, getEDUName(type) ) ;
+        OSS_LOG ( LOG_DEBUG, "Terminating thread for EDU: %lld, type %s\n",myEDUID, getEDUName(type) ) ;
     }
-    OSS_LOG ( LOG_DEBUG, "pmdEDUEntryPoint thread is destroy");
+    OSS_LOG ( LOG_DEBUG, "pmdEDUEntryPoint thread is destroy\n");
     return 0;
 }
 

@@ -78,6 +78,7 @@ int pmdEDUMgr::forceUserEDU ( EDUID eduID )
 
 done:
     _mutex.release();
+    return rc ;
 error:
     goto done;
 }
@@ -203,6 +204,7 @@ error :
 //  edu结束的时候调用 
 int pmdEDUMgr::returnEDU ( EDUID eduID, bool force, bool* destroyed )
 {
+   OSS_LOG(LOG_DEBUG,"pmdEDUMgr::returnEDU\n");
     int rc = EDB_OK ;
     EDU_TYPES type = EDU_TYPE_UNKNOWN;
     pmdEDUCB *educb = NULL;
@@ -231,6 +233,7 @@ int pmdEDUMgr::returnEDU ( EDUID eduID, bool force, bool* destroyed )
    {
       type = educb->getType() ;//获取edu类型1
    }
+    _mutex.release_shared () ;//释放锁
    // if the EDU type can't be pooled, or if we forced, or if the EDU is
    // destroied, or we exceed max pooled edus, let's destroy it
    //如果不是agent 或者强制退出 或者销毁  或者 超出了线程池大小 
@@ -277,6 +280,7 @@ error:
 // get an EDU from idle pool, if idle pool is empty, create new one
 int pmdEDUMgr::startEDU ( EDU_TYPES type, void* arg, EDUID *eduid )
 {
+   OSS_LOG(LOG_DEBUG,"pmdEDUMgr::startEDU\n");
    int     rc = EDB_OK ;
    EDUID     eduID = 0 ;
    pmdEDUCB* eduCB = NULL ;
@@ -556,6 +560,7 @@ error :
 //线程runqueue 放入 idleQueue
 int pmdEDUMgr::_deactivateEDU( EDUID eduID)
 {
+   OSS_LOG(LOG_DEBUG," pmdEDUMgr::_deactivateEDU %d\n",eduID);
    int rc = EDB_OK;
    unsigned int eduStatus  = PMD_EDU_CREATING ;
    pmdEDUCB * eduCB = NULL ;
@@ -565,20 +570,24 @@ int pmdEDUMgr::_deactivateEDU( EDUID eduID)
    {
       if ( _idleQueue.end() != _idleQueue.find ( eduID )  )
       {
+         OSS_LOG(LOG_DEBUG,"eduID is int idleQueue\n");
          goto done ;
       }
+      OSS_LOG(LOG_DEBUG,"fadfasf\n");
       rc =EDB_SYS;
       goto error ;
    }
+   printf("11111\n");
    eduCB  = ( *it ).second ;
 
    eduStatus = eduCB->getStatus();
-
+   OSS_LOG(LOG_DEBUG,"eduStatus:%d\n",eduStatus);
    if(PMD_IS_EDU_IDLE(eduStatus))
    {
+      OSS_LOG(LOG_DEBUG,"pmdEDUMgr::_deactivateEDU  PMD_IS_EDU_IDLE\n");
       goto done ;
    }
-
+   //不是等待状态或者创建状态
    if(!PMD_IS_EDU_WAITING(eduStatus)&&!PMD_IS_EDU_CREATING( eduStatus))
    {
       rc = EDB_EDU_INVAL_STATUS;
@@ -586,16 +595,18 @@ int pmdEDUMgr::_deactivateEDU( EDUID eduID)
    }
    // only Agent can be deactivated (pooled), other system
    // EDUs can only be destroyed
-   EDB_ASSERT(isPoolable(eduCB->getType()),"Only agent can be pooled");
+   EDB_ASSERT(isPoolable(eduCB->getType()),"Only agent can be pooled\n");
 
    _runQueue.erase( eduID);//移除
    eduCB->setStatus ( PMD_EDU_IDLE ) ;
    _idleQueue [ eduID ] = eduCB ;//添加
+   OSS_LOG( LOG_DEBUG,"edu status is PMD_EDU_IDLE\n");
 done:
    _mutex.release();
    return rc;
 
 error :
+   OSS_LOG(LOG_DEBUG,"error\n");
    goto done ;
 
 }

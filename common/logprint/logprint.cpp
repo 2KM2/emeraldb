@@ -110,4 +110,5 @@ INTERFACE_API void LOG_API_Print(LOG_LEVEL_E level, const char *file, const char
         vprintf(buf, args);
     }
     va_end(args);
+    fflush(stdout);
 }

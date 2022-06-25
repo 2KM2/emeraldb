@@ -93,7 +93,7 @@ int pmdAgentEntryPoint ( pmdEDUCB *cb, void *arg )
             if(EDB_NETWORK_CLOSE==rc)
             {
                 disconnect = true;
-                goto error ;   
+                goto error;
             }
         }
         packetLength =*(int *)(pReceiveBuffer);
@@ -202,6 +202,7 @@ done:
    if ( pResultBuffer )
       free ( pResultBuffer )  ;
     sock.close () ;
+    OSS_LOG(LOG_DEBUG,"socke close");
     return rc;
 error:
     switch ( rc )
