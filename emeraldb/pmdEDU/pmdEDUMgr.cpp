@@ -259,6 +259,7 @@ int pmdEDUMgr::returnEDU ( EDUID eduID, bool force, bool* destroyed )
       // safe here
       //回归线程池 
       rc = _deactivateEDU ( eduID ) ;
+      
       if ( destroyed )
       {
          // when we try to pool the EDU, destroyed set to true only when

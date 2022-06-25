@@ -245,7 +245,7 @@ int pmdEDUEntryPoint( EDU_TYPES type,pmdEDUCB *cb, void *arg)
            event.reset () ;
         }
         rc = eduMgr->returnEDU ( myEDUID, isForced, &eduDestroyed ) ;//返回线程池 由线程池决定是否eduDestroyed
-        OSS_LOG( LOG_DEBUG," return edu status  eduDestroyed %d\n",rc,eduDestroyed);
+        OSS_LOG( LOG_DEBUG," return edu status  eduDestroyed %d\n",eduDestroyed);
         if ( rc )
         {
            OSS_LOG ( LOG_ERROR, "Invalid EDU Status for EDU: %lld, type %s\n", myEDUID, getEDUName(type) ) ;
