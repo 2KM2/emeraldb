@@ -151,7 +151,7 @@ error :
 
 }
 
-int msgBuildInsert ( char **ppBuffer, int *pBufferSize, vector<BSONObj*> &obj )
+int msgBuildInsert(char **ppBuffer, int *pBufferSize, vector<BSONObj*> &obj )
 {
     int rc = EDB_OK ;
     int size = sizeof(MsgInsert);

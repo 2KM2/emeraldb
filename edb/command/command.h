@@ -6,6 +6,7 @@
 #include <bson/src/util/json.h>
 #include "ossSocket.h"
 #include "logprint.h"
+#include "message.h"
 
 #define COMMAND_QUIT         "quit"
 #define COMMAND_INSERT       "insert"
@@ -52,7 +53,7 @@ protected:
     virtual int handleReply() { return EDB_OK;}
 
 protected:
-    char m_recvBuf[RECV_BUF_SIZE];
+    char m_recvBuf[RECV_BUF_SIZE]; //内存动态分配
     char m_sendBuf[SEND_BUF_SIZE];
 
     std::string _jsonString;
@@ -67,6 +68,21 @@ class InsertCommand : public ICommand
       int   handleReply();
 };
 
+class QueryCommand : public ICommand
+{
+   public :
+      int execute ( ossSocket & sock, std::vector<std::string> & argVec );
+   protected :
+      int handleReply () ;
+} ;
+
+class DeleteCommand : public ICommand
+{
+   public :
+      int execute ( ossSocket & sock, std::vector<std::string> & argVec );
+   protected :
+      int handleReply () ;
+} ;
 
 class ConnectCommand : public ICommand
 {
@@ -77,7 +93,6 @@ class ConnectCommand : public ICommand
       int         _port;
 };
 
- 
 class QuitCommand : public ICommand
 {
    public:
@@ -90,4 +105,12 @@ class HelpCommand : public ICommand
 {
    public:
       int execute(ossSocket & sock, std::vector<std::string> & argVec );
+};
+
+class SnapshotCommand : public ICommand
+{
+   public:
+      int execute ( ossSocket & sock, std::vector<std::string> & argVec );
+   protected :
+      int handleReply () ;
 };

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "bson.h"
+#include "bson/src/bson.h"
 
 #define OP_REPLY                   1
 #define OP_INSERT                  2
@@ -61,6 +61,7 @@ int msgBuildReply ( char **ppBuffer, int *pBufferSize,int returnCode, bson::BSON
 
 int msgExtractReply ( char *pBuffer, int &returnCode, int &numReturn,const char **ppObjStart ) ;
 
+int msgBuildInsert ( char **ppBuffer, int *pBufferSize, bson::BSONObj &obj ) ;
 int msgBuildInsert ( char **ppBuffer, int *pBufferSize, vector<bson::BSONObj*> &obj ) ;
 
 int msgExtractInsert ( char *pBuffer, int &numInsert, const char **ppObjStart ) ;
