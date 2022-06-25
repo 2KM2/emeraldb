@@ -186,7 +186,7 @@ int ossSocket::send(const char *pMsg, int len,int timeout, int flags)
     maxSelectTime.tv_sec = timeout / 1000000 ;
     maxSelectTime.tv_usec = timeout % 1000000 ;
     fd_set fds ;
-    
+
     if(0==len)
     {
         return EDB_OK;
@@ -228,7 +228,7 @@ int ossSocket::send(const char *pMsg, int len,int timeout, int flags)
         rc=::send(m_fd,pMsg,len,MSG_NOSIGNAL | flags);
         if(-1==rc)
         {
-            printf("Failed to send ,rc = %d\n",SOCKET_GETLASTERROR);
+            PD_RC_CHECK(EDB_NETWORK,LOG_ERROR, "Failed to send, rc = %d fd= %d\n", SOCKET_GETLASTERROR ,m_fd) ;
         }
         len -=rc;
         pMsg +=rc;
@@ -312,6 +312,8 @@ int ossSocket::recv(char *pMsg, int len,int timeout, int flags )
         else if(rc==0)
         {
             printf("Peer unexpected shutdown\n");
+            rc=EDB_NETWORK_CLOSE;
+            goto error;
         }
         else
         {
@@ -389,6 +391,8 @@ int ossSocket::recvNF(char *pMsg,int len,int timeout)
     else if(rc==0)
     {
         printf("Peer unexpected shutdown\n");
+        rc=EDB_NETWORK_CLOSE;
+        goto error;
     }
     else{
         rc = SOCKET_GETLASTERROR;

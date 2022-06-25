@@ -33,10 +33,10 @@ int pmdMasterThreadMain(int argc,char **argv)
     int rc = EDB_OK;
     EDB_KRCB * krcb = pmdGetKRCB();
     pmdEDUMgr *eduMgr   = krcb->getEDUMgr () ;
-   EDUID      agentEDU = PMD_INVALID_EDUID ;
+    EDUID      agentEDU = PMD_INVALID_EDUID ;
     RegisterCommonSignalHandle();
 
-    LOG_API_SetPara(LOG_LEVEL_E::LOG_INFO,LOG_DIRECTION_E::LOG_TO_STD,NULL);
+    LOG_API_SetPara(LOG_LEVEL_E::LOG_DEBUG,LOG_DIRECTION_E::LOG_TO_STD,NULL);
 
     // arguments
     rc = pmdResolveArguments ( argc, argv ) ;

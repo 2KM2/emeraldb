@@ -1,6 +1,7 @@
 #pragma once
 #include  "linuxinclude.h"
 #include   "commontype.h"
+#include  "logprint.h"
 #define SOCKET_GETLASTERROR errno
 
 // by default 10ms timeout

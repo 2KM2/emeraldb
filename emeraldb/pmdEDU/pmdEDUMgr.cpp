@@ -1,6 +1,8 @@
 #include "pmdEDUMgr.h"
 #include "logprint.h"
 #include "pmdKRCB.h"
+
+
 int pmdEDUMgr::_destroyAll()
 {
     _setDestroyed(true);
@@ -20,7 +22,7 @@ int pmdEDUMgr::_destroyAll()
             _forceEDUs(EDU_USER);
         }
         ++timeCounter;
-        ossSleepmillis(100);
+        ossSleepmillis(100);//每0.1秒检查
         eduCount = _getEDUCount(EDU_USER);
     }
 
@@ -93,7 +95,7 @@ int pmdEDUMgr::_forceEDUs ( int property )
          || ((EDU_USER & property) && !_isSystemEDU( it->first )) )
       {
          ( *it ).second->force () ;
-         OSS_LOG ( LOG_ERROR, "force edu[ID:%lld]", it->first ) ;
+         OSS_LOG ( LOG_ERROR, "force edu[ID:%lld]\n", it->first ) ;
       }
      }
 
@@ -154,7 +156,7 @@ int pmdEDUMgr::postEDUPost ( EDUID eduID, pmdEDUEventTypes type,bool release , v
     }
 
    eduCB = ( *it ).second ;
-   eduCB->postEvent( pmdEDUEvent ( type, release, pData ) ) ;
+   eduCB->postEvent( pmdEDUEvent ( type, release, pData ) ) ;//pmdEDUEvent 用于数据传递
 done :
    _mutex.release_shared () ;
    return rc ;
@@ -197,6 +199,8 @@ error :
 // release control from a given EDU
 // EDUMgr should decide whether put the EDU to pool or destroy it
 // EDU Status must be in waiting or creating
+
+//  edu结束的时候调用 
 int pmdEDUMgr::returnEDU ( EDUID eduID, bool force, bool* destroyed )
 {
     int rc = EDB_OK ;
@@ -205,16 +209,18 @@ int pmdEDUMgr::returnEDU ( EDUID eduID, bool force, bool* destroyed )
     std::map<EDUID, pmdEDUCB*>::iterator it ;
 
     _mutex.get_shared();
+    //判断eduID存在不存在 runqueue
     if(_runQueue.end () == ( it = _runQueue.find ( eduID )))
     {
         if( _idleQueue.end () == ( it = _idleQueue.find ( eduID )))
         {
             rc = EDB_SYS;
             *destroyed = false;
-            _mutex.release_shared();
+            _mutex.release_shared();//释放锁
             goto error;
         }
     }
+
     educb = (*it).second ;
        // if we are trying to destry EDU manager, or enforce destroy, or
    // if the total number of threads are more than what we need
@@ -223,10 +229,11 @@ int pmdEDUMgr::returnEDU ( EDUID eduID, bool force, bool* destroyed )
    // Currentl we only able to pool agent and coordagent
    if ( educb )
    {
-      type = educb->getType() ;
+      type = educb->getType() ;//获取edu类型1
    }
    // if the EDU type can't be pooled, or if we forced, or if the EDU is
    // destroied, or we exceed max pooled edus, let's destroy it
+   //如果不是agent 或者强制退出 或者销毁  或者 超出了线程池大小 
    if ( !isPoolable(type) || force || isDestroyed () ||
         size() > (unsigned int)pmdGetKRCB()->getMaxPool () )
    {
@@ -247,18 +254,19 @@ int pmdEDUMgr::returnEDU ( EDUID eduID, bool force, bool* destroyed )
       // in this case, we don't need to care whether the EDU is agent or not
       // as long as we treat EDB_SYS as "destroyed" signal, we should be
       // safe here
+      //回归线程池 
       rc = _deactivateEDU ( eduID ) ;
       if ( destroyed )
       {
          // when we try to pool the EDU, destroyed set to true only when
          // the EDU can't be found in the list
+         //回池错误就销毁
          if ( EDB_SYS == rc )
             *destroyed = true ;
          else
             *destroyed = false ;
       }
    }
-
 
 done:   
     return rc;
@@ -287,21 +295,21 @@ int pmdEDUMgr::startEDU ( EDU_TYPES type, void* arg, EDUID *eduid )
    // if there's any pooled EDU?
    // or is the request type can be pooled ?
    /**
-    * 空间队列为空 或者是Listen的线程
+    * 空间队列为空 或者不能从线程池中获取
    */
    if ( true == _idleQueue.empty () || !isPoolable ( type ) )
    {
       // note that EDU types other than "agent" shouldn't be pooled at all
       // release latch before calling createNewEDU
       _mutex.release () ;
-      rc = _createNewEDU ( type, arg, eduid ) ;
+      rc = _createNewEDU ( type, arg, eduid ) ; //创建新的线程
       if ( EDB_OK == rc )
          goto done ;
       goto error ;
    }
 
    // if we can find something in idle queue, let's get the first of it
-   //从空间队列中找到状态是PMD_EDU_IDLE的一个edu
+   //从空闲队列中找到一个edu
    for ( it = _idleQueue.begin () ;
          ( _idleQueue.end () != it ) &&
          ( PMD_EDU_IDLE != ( *it ).second->getStatus ()) ;
@@ -314,7 +322,7 @@ int pmdEDUMgr::startEDU ( EDU_TYPES type, void* arg, EDUID *eduid )
    {
       // release latch before calling createNewEDU
       _mutex.release () ;
-      rc = _createNewEDU ( type, arg, eduid  ) ;
+      rc = _createNewEDU ( type, arg, eduid  ) ;//创建新的edu
       if ( EDB_OK == rc )
          goto done ;
       goto error ;
@@ -322,14 +330,14 @@ int pmdEDUMgr::startEDU ( EDU_TYPES type, void* arg, EDUID *eduid )
 
    // now "it" is pointing to an idle EDU
    // note that all EDUs in the idleQueue should be AGENT type
-   /*找到了一个空间的ide
+   /*
+      找到了一个空间的ide
       获取eduid 和 educb
    */
    eduID = ( *it ).first ;
    eduCB = ( *it ).second ;
    _idleQueue.erase ( eduID ) ;//从空闲队列移除
-   EDB_ASSERT ( isPoolable ( type ),
-                "must be agent" )
+   EDB_ASSERT ( isPoolable ( type ),"must be agent" )
    // switch agent type for the EDU ( call different agent entry point )
    eduCB->setType ( type ) ;//设置educb的类型
    eduCB->setStatus ( PMD_EDU_WAITING ) ;//把状态设置为等待状态
@@ -339,7 +347,7 @@ int pmdEDUMgr::startEDU ( EDU_TYPES type, void* arg, EDUID *eduid )
    /*************** END CRITICAL SECTION **********************/
 
    //The edu is start, need post a resum event
-   //事件状态 PMD_EDU_EVENT_RESUME 传入参数
+   //激活事件 传入参数
    eduCB->postEvent( pmdEDUEvent( PMD_EDU_EVENT_RESUME, false, arg ) ) ;
 
 done :
@@ -405,14 +413,15 @@ int pmdEDUMgr::_createNewEDU ( EDU_TYPES type, void* arg, EDUID *eduid )
    myEDUID = _EDUID ;
    ++_EDUID ;//global 
    _mutex.release () ;
-
+    
+    //真正的创建线程
    try
    {
       //创建一个线程 传入类型 edu 参数 
       boost::thread agentThread (pmdEDUEntryPoint, type, cb, arg ) ;
       // detach the agent so that he's all on his own
       // we only track based on CB
-      agentThread.detach () ;
+      agentThread.detach () ;//设置分离
    }
    catch(const std::exception& e)
    {
@@ -425,7 +434,7 @@ int pmdEDUMgr::_createNewEDU ( EDU_TYPES type, void* arg, EDUID *eduid )
    
 
    //The edu is create, need post a resum event
-   //设置状态为PMD_EDU_EVENT_RESUME
+   //线程创建完成后唤醒事件
    cb->postEvent(pmdEDUEvent( PMD_EDU_EVENT_RESUME, false, arg ) ) ;
 
 done:
@@ -460,6 +469,7 @@ int pmdEDUMgr::_destroyEDU( EDUID eduID)
          rc = EDB_SYS ;
          goto error ;
       }
+      //在空闲队列中找到
       eduCB = ( *it ).second ;
       if(!PMD_IS_EDU_IDLE(eduCB->getStatus()))
       {
@@ -472,6 +482,7 @@ int pmdEDUMgr::_destroyEDU( EDUID eduID)
    }
    else //if we find in run queue we expect waiting status
    {
+     //在运行队列中
       eduCB = ( *it ).second ;
       eduStatus = eduCB->getStatus () ;
       if(!PMD_IS_EDU_WAITING(eduStatus)&&!PMD_IS_EDU_CREATING ( eduStatus ))
@@ -530,7 +541,7 @@ int pmdEDUMgr::waitEDU( EDUID eduID)
       rc = EDB_EDU_INVAL_STATUS;
       goto error;
    }
-   eduCB->setStatus ( PMD_EDU_WAITING ) ;
+   eduCB->setStatus ( PMD_EDU_WAITING ) ;//设为等待状态
 done :
    _mutex.release_shared () ;
    /************* END CRITICAL SECTION **************/
@@ -542,6 +553,7 @@ error :
 // creating/waiting status edu can be deactivated (pooled)
 // deactivateEDU supposed only happened to AGENT EDUs
 // any EDUs other than AGENT will be destroyed and EDB_SYS will be returned
+//线程runqueue 放入 idleQueue
 int pmdEDUMgr::_deactivateEDU( EDUID eduID)
 {
    int rc = EDB_OK;
@@ -587,7 +599,7 @@ error :
    goto done ;
 
 }
-
+//空闲队列 转为运行队列
 int pmdEDUMgr::activateEDU ( EDUID eduID )
 {
    int rc = EDB_OK ;

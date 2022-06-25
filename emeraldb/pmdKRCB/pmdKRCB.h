@@ -3,7 +3,7 @@
 #include  "commontype.h"
 #include  "commondef.h"
 #include  "pmdEDUMgr.h"
-typedef enum EDB_DB_STATUS
+enum EDB_DB_STATUS
 {
     EDB_DB_NORMAL = 0,
     EDB_DB_SHUTDOWN ,

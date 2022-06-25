@@ -4,6 +4,7 @@
 #include "edb.h"
 
 COMMAND_BEGIN
+COMMAND_ADD(COMMAND_INSERT,InsertCommand)
 COMMAND_ADD(COMMAND_CONNECT,ConnectCommand)
 COMMAND_ADD(COMMAND_QUIT, QuitCommand)
 COMMAND_ADD(COMMAND_HELP, HelpCommand)
@@ -18,9 +19,10 @@ int ICommand::execute( ossSocket & sock, std::vector<std::string> & argVec )
 
 int ICommand::getError(int code)
 {
-     switch(code)
+   switch(code)
    {
       case EDB_OK:
+         std::cout<<"Command Successfully"<<std::endl;
          break;
       case EDB_IO:
          std::cout << "io error is occurred" << std::endl;
@@ -96,6 +98,7 @@ int ICommand::recvReply( ossSocket & sock)
    int length = 0;
    int ret = EDB_OK;
    memset(m_recvBuf,0,RECV_BUF_SIZE);
+
    if(!sock.isConnected())
    {
       return getError(EDB_SOCK_NOT_CONNECT);
@@ -118,7 +121,6 @@ int ICommand::recvReply( ossSocket & sock)
    }
    //get the value of length
    length = *(int *)m_recvBuf;
-
    //judge the length is valid or not
    //reall dynamically 
    if(length >RECV_BUF_SIZE)
@@ -152,7 +154,7 @@ int ICommand::sendOrder(ossSocket & sock, OnMsgBuild onMsgBuild  )
    bson::BSONObj bsonData;
    try
    {
-      bsonData = bson::fromjson(m_jsonString);
+      bsonData = bson::fromjson(_jsonString);
    }
    catch(const std::exception& e)
    {
@@ -179,13 +181,51 @@ int ICommand::sendOrder( ossSocket & sock, int opCode )
    int ret = EDB_OK;
    memset(m_sendBuf, 0, SEND_BUF_SIZE);
    char * pSendBuf = m_sendBuf;
-   const char *pStr = "hello world\0";
-   *(int*)pSendBuf = strlen(pStr)+1+sizeof(int);
-   memcpy(&pSendBuf[4],pStr,strlen(pStr)+1);
+   strcpy(m_sendBuf,"hello world");
+   *(int*)pSendBuf = strlen(m_sendBuf)+1+sizeof(int);
+   memcpy(&pSendBuf[4],m_sendBuf,strlen(m_sendBuf)+1);
    ret =sock.send(pSendBuf,*(int*)pSendBuf);
+   return ret;
+}
+/******************************InsertCommand**********************************************/
+int InsertCommand::handleReply()
+{
+  /* MsgReply * msg = (MsgReply*)_recvBuf;
+   int returnCode = msg->returnCode;
+   int ret = getError(returnCode);
+   */
+   return EDB_OK;
+}
+
+int InsertCommand::execute( ossSocket & sock, std::vector<std::string> & argVec )
+{
+   int rc = EDB_OK;
+   if( argVec.size() <1 )
+   {
+      return getError(EDB_INSERT_INVALID_ARGUMENT);
+   }
+   _jsonString = argVec[0];
+     if( !sock.isConnected() )
+   {
+      return getError(EDB_SOCK_NOT_CONNECT);
+   }
+
+   rc = sendOrder( sock, 0 );
+   //PD_RC_CHECK ( rc, LOG_ERROR, "Failed to send order, rc = %d", rc ) ;
+   rc = recvReply( sock );
+   //OSS_LOG(LOG_DEBUG,"recvReply status %d\n",rc);
+   //PD_RC_CHECK ( rc, LOG_ERROR, "Failed to receive reply, rc = %d", rc ) ;
+   rc = handleReply();
+   //PD_RC_CHECK ( rc, LOG_ERROR, "Failed to receive reply, rc = %d", rc ) ;
+done :
+   return rc;
+error :
+   //OSS_LOG("LOG_DEBUG","error\n");
+   goto done ;
 }
 
 
+/******************************InsertCommand**********************************************/
 int ConnectCommand::execute( ossSocket & sock, std::vector<std::string> & argVec )
 {
    int ret = EDB_OK;
@@ -205,10 +245,9 @@ int ConnectCommand::execute( ossSocket & sock, std::vector<std::string> & argVec
    }
 
    sock.disableNagle();
+   OSS_LOG(LOG_DEBUG,"ConnectCommand successfully\n");
    return ret;
 }
-
-
 
 /******************************QuitCommand**********************************************/
 int QuitCommand::handleReply()

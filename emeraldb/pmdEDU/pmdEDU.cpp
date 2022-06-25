@@ -1,10 +1,12 @@
-#include "pmdEDUEvent.h"
+#include  "pmdEDUEvent.h"
 #include  "pmdEDU.h"
 #include  "logprint.h"
 #include  "pmdEDUMgr.h"
 #include  "pmdKRCB.h"
+
+
 static std::map<EDU_TYPES,std::string> mapEDUName;
-static std::map<EDU_TYPES,EDU_TYPES> mapEDUTypeSys;
+static std::map<EDU_TYPES,EDU_TYPES> mapEDUTypeSys;//系统edu 映射表
 
 
 //注册edu名字
@@ -13,13 +15,18 @@ int  registerEDUName(EDU_TYPES type,const char *name,bool system)
     int rc = EDB_OK;
     std::map<EDU_TYPES,std::string>::iterator it = mapEDUName.find(type);
 
+    //edu name没有重复
     if(it!=mapEDUName.end())
     {
         OSS_LOG( LOG_ERROR,"EDU Type conflict[type:%d,%s<->%s",(int)type, it->second.c_str(), name ) ;
         rc =EDB_SYS;
         goto error ;
     }
+
+
     mapEDUName[type]=std::string(name);
+    
+    //判断是否是系统edu
     if(system)
     {
         mapEDUTypeSys[type]=type;
@@ -62,7 +69,7 @@ pmdEDUCB::pmdEDUCB(pmdEDUMgr *mgr,EDU_TYPES type)
 
 }
 
-
+//每种不同类型得edu得入口函数
 struct _eduEntryInfo
 {
     EDU_TYPES type;
@@ -72,6 +79,8 @@ struct _eduEntryInfo
 
 #define ON_EDUTYPE_TO_ENTRY(type,system,entry,desp) \
     {type,registerEDUName(type,desp,system),entry}
+
+
 
 pmdEntryPoint getEntryFuncByType ( EDU_TYPES type )
 {
@@ -100,16 +109,17 @@ done:
 int pmdRecv(char *pBuffer,int recvSize,ossSocket *sock,pmdEDUCB *cb)
 {
     int rc = EDB_OK;
-    assert(sock!=NULL);
-    assert(cb!=NULL);
+    EDB_ASSERT(sock,"Scket is NULL");
+    EDB_ASSERT(cb ,"cb is NULL");
     while(true)
-    {
+    {   
+        //判读是否强制退出
         if(cb->isForced())
         {
             rc = EDB_APP_FORCED;
             goto done;
         }
-        rc = sock->recv(pBuffer,recvSize);
+        rc = sock->recv(pBuffer,recvSize);//等待接收
         if(EDB_TIMEOUT == rc)
         {
             continue;
@@ -145,25 +155,29 @@ int pmdSend(const char *pBuffer,int sendSize,ossSocket *sock,pmdEDUCB *cb)
     
 done:
     return rc;
-
 }
-//线程运行函数
+
+
+
+//核心 线程调用的函数
 int pmdEDUEntryPoint( EDU_TYPES type,pmdEDUCB *cb, void *arg)
 {
     int rc = EDB_OK;
-    EDUID myEDUID = cb->getID();
-    pmdEDUMgr *eduMgr = cb->getEDUMgr();
-    pmdEDUEvent event;
+    EDUID myEDUID  = cb->getID(); //当前的id ,由线程池赋值
+    pmdEDUMgr *eduMgr = cb->getEDUMgr(); //获取线程池
+    pmdEDUEvent event;                  //当前本地事件 
     bool eduDestroyed = false;
     bool  isForced = false;
     //main loop
+    //eduDestroyed 由线程池决定
     while(!eduDestroyed)
     {
         type = cb->getType();
         //wait for 1000 millseconds for event
         // 1秒等到一次事件
         if(!cb->waitEvent(event,1000))
-        {
+        {   
+            //如果强制退出
             if(cb->isForced())
             {
                 OSS_LOG(LOG_EVENT,"EDU %lld is forced ",myEDUID);
@@ -172,11 +186,14 @@ int pmdEDUEntryPoint( EDU_TYPES type,pmdEDUCB *cb, void *arg)
             else 
                 continue;
         }
-        //PMD_EDU_EVENT_RESUME事件
+        //唤醒事件
         if(!isForced && PMD_EDU_EVENT_RESUME ==event._eventType)
         {
             //set EDU status to wait
+            //修改状态为等待,有事件过来了
             eduMgr->waitEDU(myEDUID);
+            //run the main function
+            //根据类型获取入口函数
             pmdEntryPoint entryFunc = getEntryFuncByType(type);
             if(!entryFunc)
             {
@@ -186,44 +203,47 @@ int pmdEDUEntryPoint( EDU_TYPES type,pmdEDUCB *cb, void *arg)
             }
             else
             {
-                //传入pmdEDU和数据
+                //传入pmdEDU和数据 执行函数
                 rc = entryFunc(cb,event._Data);
             }
 
+            //如果EDB是启动状态 
             if(EDB_IS_DB_UP)
             {
+                //系统edu 永远不能退出
                 if(isSystemEDU(cb->getType()))
-                {
+                { 
                     OSS_LOG ( LOG_ERROR, "System EDU: %lld, type %s exits with %d",myEDUID, getEDUName(type), rc ) ;
                      EDB_SHUTDOWN_DB
                 }
-                else if(rc)
+                else if(rc) //代理线程函数执行有错误
                 {
-
+                    OSS_LOG( LOG_WARNING,"EDU %lld, type %s,exits with %d",myEDUID,getEDUName(type),rc);
                 }
             }
-            eduMgr->waitEDU(myEDUID);
+            //把当前edu设置为等待状态 
+           // eduMgr->waitEDU(myEDUID);
         }
-        else if(!isForced &&PMD_EDU_EVENT_TERM !=event._eventType)
+        else if(!isForced &&PMD_EDU_EVENT_TERM !=event._eventType)//这个阶段只有resume 和terminate
         {
             OSS_LOG(LOG_ERROR, "Receive the wrong event %d in EDU %lld, type %s",
                   event._eventType, myEDUID, getEDUName(type) ) ;
 
             rc = EDB_SYS;
         }
-        else if ( isForced && PMD_EDU_EVENT_TERM == event._eventType && cb->isForced() )
+        else if ( isForced && PMD_EDU_EVENT_TERM == event._eventType && cb->isForced() ) //terminate 事件
         {
           OSS_LOG ( LOG_ERROR, "EDU %lld, type %s is forced", myEDUID, type ) ;
              isForced = true ;
         }
-
+        //释放事件
         if ( !isForced && event._Data && event._release )
         {
            free ( event._Data ) ;
            event.reset () ;
         }
 
-          rc = eduMgr->returnEDU ( myEDUID, isForced, &eduDestroyed ) ;
+        rc = eduMgr->returnEDU ( myEDUID, isForced, &eduDestroyed ) ;//返回线程池 由线程池决定是否eduDestroyed
 
         if ( rc )
         {
@@ -231,6 +251,7 @@ int pmdEDUEntryPoint( EDU_TYPES type,pmdEDUCB *cb, void *arg)
         }
         OSS_LOG ( LOG_DEBUG, "Terminating thread for EDU: %lld, type %s",myEDUID, getEDUName(type) ) ;
     }
+    OSS_LOG ( LOG_DEBUG, "pmdEDUEntryPoint thread is destroy");
     return 0;
 }
 

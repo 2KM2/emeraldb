@@ -10,6 +10,7 @@ void EDB::start(void)
 {
     std::cout << "Welcome to EmeraldDB Shell!" << std::endl;
    std::cout << "edb help for help, Ctrl+c or quit to exit" << std::endl;
+   LOG_API_SetPara(LOG_LEVEL_E::LOG_DEBUG,LOG_DIRECTION_E::LOG_TO_STD,NULL);
    while(0==g_Quit)
    {
       prompt();

@@ -42,17 +42,17 @@ int pmdTcpListenerEntryPoint(pmdEDUCB*cb , void*arg)
       }
       ossSocket sock ( port ) ;
       rc = sock.initSocket () ;
-      EDB_VALIDATE_GOTOERROR(EDB_OK==rc,rc,"Failed initialize socket");
+      EDB_VALIDATE_GOTOERROR(EDB_OK==rc,rc,"Failed initialize socket\n");
 
        rc = sock.bindListen();
-       EDB_VALIDATE_GOTOERROR(EDB_OK==rc, rc,"Failed to bind/listen socket");
+       EDB_VALIDATE_GOTOERROR(EDB_OK==rc, rc,"Failed to bind/listen socket\n");
 
        //once bind is successfully
       if ( EDB_OK != ( rc = eduMgr->activateEDU ( myEDUID )) )
       {
          goto error ;
       }
-
+      OSS_LOG(LOG_DEBUG,"BindListen successfully\n");
       //master loop for tcp listen
       while(!EDB_IS_DB_DOWN)
       {
@@ -70,8 +70,8 @@ int pmdTcpListenerEntryPoint(pmdEDUCB*cb , void*arg)
          }
          else if(rc)
          {
-            OSS_LOG(LOG_ERROR,"Failed to accept socket in TcpListener" ) ;
-            OSS_LOG(LOG_EVENT,"Restarting socket to listen" ) ;
+            OSS_LOG(LOG_ERROR,"Failed to accept socket in TcpListener\n" ) ;
+            OSS_LOG(LOG_EVENT,"Restarting socket to listen\n" ) ;
             break;
          }
 
@@ -81,21 +81,23 @@ int pmdTcpListenerEntryPoint(pmdEDUCB*cb , void*arg)
 
          //启动新的edu agent
          rc = eduMgr->startEDU(EDU_TYPE_AGENT,pData,&agentEDU);
+         OSS_LOG(LOG_DEBUG,"Agent edu successfully\n");
          if(rc)
          {
             if(rc ==EDB_QUIESCED)
             {
-                 OSS_LOG (LOG_ERROR, "Reject new connection due to quiesced database" ) ;
+                 OSS_LOG (LOG_ERROR, "Reject new connection due to quiesced database\n" ) ;
             }
             else
             {
-               OSS_LOG(LOG_ERROR,"Failed to start EDU agent" );
+               OSS_LOG(LOG_ERROR,"Failed to start EDU agent\n" );
             }
             // close remote connection if we can't create new thread
             ossSocket newsock(&s);
             newsock.close();
             continue;
          }
+       
       }                        
       //理论不会走到这一步,除非数据库停止
       if ( EDB_OK != ( rc = eduMgr->waitEDU ( myEDUID )) )
@@ -109,10 +111,10 @@ error :
    switch ( rc )
    {
    case EDB_SYS :
-      OSS_LOG ( LOG_SERVER, "System error occured" ) ;
+      OSS_LOG ( LOG_SERVER, "System error occured\n" ) ;
       break ;
    default :
-      OSS_LOG ( LOG_SERVER, "Internal error" ) ;
+      OSS_LOG ( LOG_SERVER, "Internal error\n" ) ;
    }
    goto done ;
 }

@@ -5,7 +5,7 @@
 #include "commontype.h"
 #include <bson/src/util/json.h>
 #include "ossSocket.h"
-
+#include "logprint.h"
 
 #define COMMAND_QUIT         "quit"
 #define COMMAND_INSERT       "insert"
@@ -55,7 +55,16 @@ protected:
     char m_recvBuf[RECV_BUF_SIZE];
     char m_sendBuf[SEND_BUF_SIZE];
 
-    std::string m_jsonString;
+    std::string _jsonString;
+};
+
+
+class InsertCommand : public ICommand
+{
+   public:
+      int   execute( ossSocket & sock, std::vector<std::string> & argVec );
+   protected:
+      int   handleReply();
 };
 
 

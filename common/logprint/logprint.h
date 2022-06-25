@@ -25,7 +25,7 @@ typedef enum _log_level_e
 
 
 #define OSS_LOG(level,fmt, ...) LOG_API_Print(level,__FILE__,__FUNCTION__,__LINE__,fmt,##__VA_ARGS__)
-#define EDB_ASSERT(cond,str)  {if(cond){}}
+#define EDB_ASSERT(cond,str)  {if(cond){ }}
 #define EDB_CHECK(cond,str)   {if(cond){}}
 
 #define PD_CHECK(cond,retCode,gotoLabel,level,fmt,...)                \

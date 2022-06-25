@@ -1,6 +1,6 @@
-PROJ_NAME := f09
+PROJ_NAME := emeraldb
 CROSS_COMPILE :=/usr/bin/
-DEBUG_VERSION := n
+DEBUG_VERSION := y
 
 
 export PLATFORM_TYPE
