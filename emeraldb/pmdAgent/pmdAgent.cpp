@@ -1,13 +1,13 @@
-#include "logprint.h"
-#include  "linuxinclude.h"
-#include  "commontype.h"
-#include  "commondef.h"
-#include  "ossSocket.h"
-#include  "bson/src/bson.h"
+#include   "logprint.h"
+#include   "linuxinclude.h"
+#include   "commontype.h"
+#include   "commondef.h"
+#include   "ossSocket.h"
+#include   "bson/src/bson.h"
 #include   "pmdEDU.h"
 #include   "pmdKRCB.h"
 #include   "pmdEDUMgr.h"
-
+#include   "message.h"
 using namespace std;
 using namespace bson;
 
@@ -15,11 +15,6 @@ using namespace bson;
 #define ossRoundUpToMultipleX(x,y) (((x)+((y)-1))-(((x)+((y)-1))%(y)))
 #define PMD_AGENT_RECIEVE_BUFFER_SZ 4096
 #define EDB_PAGE_SIZE               4096
-
-struct MsgReply
-{
-    int a;
-};
 static int pmdProcessAgentRequest ( char *pReceiveBuffer,
                                     int packetSize,
                                     char **ppResultBuffer,
@@ -33,10 +28,136 @@ static int pmdProcessAgentRequest ( char *pReceiveBuffer,
    int rc  = EDB_OK;
    unsigned int probe  = 0;
    const char * pInsertorBuffer = NULL;
-    **(int **)ppResultBuffer=0;
-    *pResultBufferSize = 4;
-    OSS_LOG(LOG_DEBUG,"Receive data %s\n ",&pReceiveBuffer[4]); 
+   BSONObj recordID ;
+   BSONObj retObj ;
+
+   //extract message
+   MsgHeader  * header = (MsgHeader*)pReceiveBuffer;
+   int messageLength   = header->messageLen;
+   int  opCode         = header->opCode;
+   EDB_KRCB * krcb     = pmdGetKRCB();
+
+   *disconnect = false;
+
+
+  // check if the package length is valid
+   if(messageLength<(int)sizeof(MsgHeader))
+   {   
+      probe= 10;
+      rc = EDB_INVALIDARG ;
+      goto error ;
+   }
+   try
+   {
+      if(OP_INSERT == opCode)
+      {
+         int recordNum = 0;
+         OSS_LOG(LOG_DEBUG,"Insert request received\n");
+         rc = msgExtractInsert(pReceiveBuffer,recordNum,&pInsertorBuffer);
+         if(rc)
+         {
+            OSS_LOG( LOG_ERROR,"Failed to read insert packet\n");
+            probe = 20;
+            rc = EDB_INVALIDARG;
+            goto error ;
+         }
+
+         try
+         {
+             BSONObj insertor ( pInsertorBuffer )  ;
+             OSS_LOG(LOG_ERROR,"Insert:insert:%s\n",insertor.toString().c_str() ) ;
+            // make sure _id is included
+         }
+         catch(const std::exception& e)
+         {
+            OSS_LOG ( LOG_ERROR,"Failed to create insertor for insert: %s\n",e.what() ) ;
+            probe = 30 ;
+            rc = EDB_INVALIDARG ;
+            goto error ;
+         }
+         
+
+      }
+      else if(OP_QUERY == opCode)
+      {
+
+      }
+      else if(OP_DELETE ==opCode)
+      {
+
+      }
+      else if(OP_SNAPSHOT == opCode)
+      {
+         
+      }
+      else if(OP_COMMAND == opCode)
+      {
+
+      }
+      else if(OP_DISCONNECT == opCode)
+      {
+         *disconnect= true;
+      }
+      else
+      {
+
+      }
+   }
+   catch(std::exception &e)
+   {
+      OSS_LOG ( LOG_ERROR,
+               "Error happened during performing operation: %s",
+               e.what() ) ;
+      probe = 70 ;
+      rc = EDB_INVALIDARG ;
+      goto error ;
+   }
+   if(rc)
+   {
+            OSS_LOG ( LOG_ERROR,
+               "Failed to perform operation, rc = %d", rc ) ;
+      goto error ;
+   }
+done:
+   if(!*disconnect)
+   {
+      switch ( opCode )
+      {
+      case OP_SNAPSHOT :
+      case OP_QUERY :
+         {
+            msgBuildReply ( ppResultBuffer,
+                         pResultBufferSize,
+                         rc, &retObj ) ;
+         break ;
+         }
+      default :
+         {
+            msgBuildReply ( ppResultBuffer,
+                         pResultBufferSize,
+                         rc, NULL ) ;
+         break ;
+         }
+      }
+   }
     return rc;
+error:
+   switch ( rc )
+   {
+   case EDB_INVALIDARG :
+      OSS_LOG ( LOG_ERROR,
+               "Invalid argument is received, probe: %d", probe ) ;
+      break ;
+   case EDB_IXM_ID_NOT_EXIST :
+      OSS_LOG ( LOG_ERROR,
+               "Record does not exist" ) ;
+      break ;
+   default :
+      OSS_LOG ( LOG_ERROR,
+               "System error, probe: %d, rc = %d", probe, rc ) ;
+      break ;
+   }
+   goto done ;
 }
 
 int pmdAgentEntryPoint ( pmdEDUCB *cb, void *arg )
